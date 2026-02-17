@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 2
+    },
+    "auditLog": "logs\\.b268f0bfe526c7d15bc2135e1bf413c71683cfd0-audit.json",
+    "files": [
+        {
+            "date": 1771332472600,
+            "name": "logs\\creditoffset-2026-02-17.log",
+            "hash": "4651acc308313f300dcc07cf68f9695a24bff4790d79824b737d5455133d022d"
+        }
+    ],
+    "hashType": "sha256"
+}
