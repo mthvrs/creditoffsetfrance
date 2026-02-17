@@ -453,7 +453,7 @@ function MovieSubmit({ movie, onSuccess }) {
                 Important : Nouveau système de timecodes
               </Typography>
               <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
-                Cette version du site utilise les <strong>timecodes absolus</strong> (temps écoulé depuis le début du DCP) et non plus les offsets (temps restant). Nous suivons désormais la norme SMPTE actualisée, car c'est ainsi que l'information est présentée dans les DCPs modernes. Par exemple, pour un film de 2h05 où les crédits commencent à 1h50, indiquez <strong>1:50:00</strong> (et non 0:15:00).
+                Cette version du site utilise les <strong>timecodes absolus</strong> (temps écoulé depuis le début du DCP) et non plus les offsets (temps restant). Nous suivons désormais la norme SMPTE, car c'est ainsi que l'information est présentée dans les DCPs modernes. Par exemple, pour un film de 2h05 où les crédits commencent à 1h50, indiquez <strong>1:50:00</strong> (et non 0:15:00).
               </Typography>
 
               <Typography variant="body2">
