@@ -83,7 +83,7 @@ const result = await pool.query(`
 });
 
 /**
- * GET /search - Search movies
+ * GET /search - Search movies with accent-insensitive matching
  */
 router.get('/search', async (req, res) => {
   const { query } = req.query;
@@ -93,17 +93,28 @@ router.get('/search', async (req, res) => {
   }
 
   try {
+    // Use unaccent for accent-insensitive search
+    // Priority: exact matches > word start matches > substring matches
     const result = await pool.query(
       `SELECT 
         m.id, m.tmdb_id , m.title, m.original_title, m.release_date, m.poster_path, m.runtime,
-        COUNT(s.id) as submissioncount
+        COUNT(s.id) as submission_count,
+        -- Prioritize exact matches, then word starts, then substrings
+        CASE
+          WHEN unaccent(LOWER(m.title)) = unaccent(LOWER($1)) THEN 1
+          WHEN unaccent(LOWER(m.original_title)) = unaccent(LOWER($1)) THEN 1
+          WHEN unaccent(LOWER(m.title)) LIKE unaccent(LOWER($1)) || '%' THEN 2
+          WHEN unaccent(LOWER(m.original_title)) LIKE unaccent(LOWER($1)) || '%' THEN 2
+          ELSE 3
+        END as match_priority
       FROM movies m
       LEFT JOIN submissions s ON m.id = s.movie_id 
-      WHERE m.title ILIKE $1 OR m.original_title ILIKE $1
+      WHERE unaccent(m.title) ILIKE unaccent('%' || $1 || '%') 
+         OR unaccent(m.original_title) ILIKE unaccent('%' || $1 || '%')
       GROUP BY m.id
-      ORDER BY submissioncount DESC, m.release_date DESC
+      ORDER BY match_priority ASC, submission_count DESC, m.release_date DESC
       LIMIT 20`,
-      [`%${query}%`]
+      [query]
     );
 
     res.json(result.rows);
