@@ -21,7 +21,7 @@ function validateTimecode(timecode, fieldName) {
     return `${fieldName}: Format invalide (HH:MM:SS attendu)`;
   }
   
-  const pattern = /^(\d{1,2}):(\d{2}):(\d{2})$/;
+  const pattern = /^(\\d{1,2}):(\\d{2}):(\\d{2})$/;
   const match = sanitized.match(pattern);
   
   if (!match) {
@@ -51,15 +51,15 @@ export const validateSubmission = [
     .isInt().withMessage('ID TMDB invalide')
     .toInt(),
   
+  // IMPORTANT: title comes from TMDB (trusted source) - do NOT sanitize it
   body('title')
     .trim()
-    .notEmpty().withMessage('Titre requis')
-    .custom((value) => {
-      const sanitized = sanitizeText(value);
-      if (!sanitized) throw new Error('Titre invalide');
-      return true;
-    })
-    .customSanitizer((value) => sanitizeText(value)),
+    .notEmpty().withMessage('Titre requis'),
+  
+  // IMPORTANT: original_title comes from TMDB (trusted source) - do NOT sanitize it
+  body('original_title')
+    .optional()
+    .trim(),
   
   body("cpl_title")
     .trim()
