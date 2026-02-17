@@ -110,8 +110,8 @@ router.get('/search', async (req, res) => {
         END as match_priority
       FROM movies m
       LEFT JOIN submissions s ON m.id = s.movie_id 
-      WHERE unaccent(m.title) ILIKE unaccent('%' || $1 || '%') 
-         OR unaccent(m.original_title) ILIKE unaccent('%' || $1 || '%')
+      WHERE unaccent(LOWER(m.title)) LIKE '%' || unaccent(LOWER($1)) || '%'
+         OR unaccent(LOWER(m.original_title)) LIKE '%' || unaccent(LOWER($1)) || '%'
       GROUP BY m.id
       ORDER BY match_priority ASC, submission_count DESC, m.release_date DESC
       LIMIT 20`,
