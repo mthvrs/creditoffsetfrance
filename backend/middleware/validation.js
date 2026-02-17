@@ -85,7 +85,7 @@ export const validateSubmission = [
     .customSanitizer((value) => sanitizeText(value)),
   
   body('source')
-    .isIn(['Observation en salle', 'Inclus dans le DCP', 'Communications du distributeur/labo', 'Autre'])
+    .isIn(['Observation en salle', 'Inclus dans le DCP', 'Communications du distributeur / labo', 'Autre'])
     .withMessage('Source invalide'),
   
   body('source_other')
@@ -135,11 +135,10 @@ export const validateSubmission = [
     .customSanitizer((value) => sanitizeText(value)),
   
   body('username')
-    .optional()
     .trim()
+    .notEmpty().withMessage("Nom d'utilisateur requis")
     .isLength({ max: 100 }).withMessage("Nom d'utilisateur trop long (max 100 caractères)")
     .custom((value) => {
-      if (!value) return true;
       const sanitized = sanitizeUsername(value);
       if (!sanitized) throw new Error('Nom d\'utilisateur invalide');
       return true;
@@ -156,7 +155,7 @@ export const validateSubmission = [
       
       for (const scene of sanitized) {
         if (!scene.start_time || !scene.end_time) {
-          throw new Error('Chaque scène doit avoir un start_time et end_time');
+          throw new Error('Chaque scène post-crédit doit avoir un timecode de début ET de fin');
         }
         
         const startError = validateTimecode(scene.start_time, 'Start time');
