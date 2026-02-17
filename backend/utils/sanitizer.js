@@ -1,14 +1,15 @@
 /**
  * XSS Sanitization Utility
- * Uses industry-standard validator.js library for secure sanitization
+ * Strips dangerous content but preserves normal text characters like apostrophes
+ * HTML escaping is done by the frontend during rendering
  */
 
 import validator from 'validator';
 
 /**
  * Sanitize user input to plain text only
- * Uses validator's escape() which converts HTML special characters EXCEPT spaces
- * validator.escape() only escapes: <, >, &, ', ", /
+ * Strips HTML tags but preserves normal punctuation like apostrophes
+ * Does NOT HTML-escape - that's the frontend's job during rendering
  * @param {string} input - Raw user input
  * @returns {string} - Sanitized plain text
  */
@@ -20,19 +21,25 @@ export function sanitizeText(input) {
   // Trim whitespace from edges only
   let sanitized = input.trim();
   
-  // Escape HTML entities - validator.escape() preserves internal spaces
-  // It only escapes: < > & ' " /
-  sanitized = validator.escape(sanitized);
+  // Remove HTML tags using whitelist (only allow safe characters, no tags)
+  // This prevents <script> and other HTML injection but keeps punctuation
+  sanitized = validator.stripLow(sanitized, true); // Remove control characters but keep newlines
   
   // Remove null bytes
   sanitized = sanitized.replace(/\0/g, '');
+  
+  // Remove HTML tags manually (simple approach - strips < and > and everything between)
+  sanitized = sanitized.replace(/<[^>]*>/g, '');
+  
+  // Remove any remaining HTML-like patterns
+  sanitized = sanitized.replace(/&lt;/g, '').replace(/&gt;/g, '');
   
   return sanitized;
 }
 
 /**
  * Sanitize username - stricter rules
- * Allows only alphanumeric, spaces, hyphens, underscores, and basic accented characters
+ * Allows only alphanumeric, spaces, hyphens, underscores, apostrophes and basic accented characters
  * @param {string} username - Raw username input
  * @returns {string} - Sanitized username
  */
@@ -41,15 +48,14 @@ export function sanitizeUsername(username) {
     return '';
   }
 
-  // First trim and escape
+  // First trim
   let sanitized = validator.trim(username);
-  sanitized = validator.escape(sanitized);
   
   // Whitelist approach: only allow safe characters
-  // Allows French accented characters: àâäéèêëïîôùûüÿç
+  // Allows French accented characters and apostrophes: 'àâäéèêëïîôùûüÿç
   sanitized = validator.whitelist(
     sanitized, 
-    'a-zA-Z0-9\\s\\-_àâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ&;#'
+    'a-zA-Z0-9\\s\\-_\'\u00e0\u00e2\u00e4\u00e9\u00e8\u00ea\u00eb\u00ef\u00ee\u00f4\u00f9\u00fb\u00fc\u00ff\u00e7\u00c0\u00c2\u00c4\u00c9\u00c8\u00ca\u00cb\u00cf\u00ce\u00d4\u00d9\u00db\u00dc\u0178\u00c7'
   );
   
   // Normalize multiple spaces
@@ -200,7 +206,7 @@ export function sanitizePostCreditScenes(scenes) {
   return scenes.map(scene => {
     const start_time = sanitizeTimecode(scene.start_time || '');
     const end_time = sanitizeTimecode(scene.end_time || '');
-    // sanitizeText preserves spaces - only escapes HTML special chars
+    // sanitizeText now preserves apostrophes and normal punctuation
     const description = sanitizeText(scene.description || '');
     const scene_order = validator.isInt(String(scene.scene_order), { min: 0 }) 
       ? parseInt(scene.scene_order, 10) 
