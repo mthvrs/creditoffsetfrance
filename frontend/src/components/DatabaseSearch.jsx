@@ -121,7 +121,7 @@ function DatabaseSearch({ onMovieClick }) {
 
         <TextField
           fullWidth
-          placeholder="Rechercher un film déjà soumis... (ex: 'rever' trouve aussi 'rêver')"
+          placeholder="Rechercher un film déjà soumis..."
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
           InputProps={{

@@ -99,7 +99,7 @@ function LegacyDataModal({ open, onClose }) {
 
         <TextField
           fullWidth
-          placeholder="Rechercher un film... (ex: 'rever' trouve aussi 'rêver')"
+          placeholder="Rechercher un film..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           InputProps={{
