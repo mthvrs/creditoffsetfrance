@@ -6,7 +6,7 @@
 import DOMPurify from 'dompurify';
 
 /**
- * Decode HTML entities
+ * Decode HTML entities (including numeric entities like &#x27;)
  * @param {string} text - Text that may contain HTML entities
  * @returns {string} - Text with decoded entities
  */
@@ -15,15 +15,23 @@ const decodeHtmlEntities = (text) => {
     return '';
   }
   
+  // Create a temporary element to decode HTML entities
   const textarea = document.createElement('textarea');
   textarea.innerHTML = text;
-  return textarea.value;
+  const decoded = textarea.value;
+  
+  // Additional decoding for numeric entities that might not decode properly
+  // This handles &#x27; &#39; and other numeric/hex entities
+  return decoded.replace(/&#(x?)([0-9a-fA-F]+);/g, (match, isHex, code) => {
+    const num = isHex ? parseInt(code, 16) : parseInt(code, 10);
+    return String.fromCharCode(num);
+  });
 };
 
 /**
  * Sanitize text content - removes all HTML and returns plain text
- * Also decodes HTML entities to display them properly
- * @param {string} text - Raw text that may contain HTML
+ * Also decodes HTML entities to display them properly (including &#x27; for apostrophes)
+ * @param {string} text - Raw text that may contain HTML or HTML entities
  * @returns {string} - Plain text with HTML stripped and entities decoded
  */
 export const sanitizeText = (text) => {
@@ -31,8 +39,8 @@ export const sanitizeText = (text) => {
     return '';
   }
   
-  // First decode any HTML entities (like &#x27; or &amp;)
-  const decoded = decodeHtmlEntities(text);
+  // First decode any HTML entities (like &#x27;, &#39;, &quot;, &amp;, etc.)
+  let decoded = decodeHtmlEntities(text);
   
   // Then configure DOMPurify to strip all HTML tags (plaintext mode)
   const clean = DOMPurify.sanitize(decoded, {
@@ -54,11 +62,11 @@ export const sanitizeUsername = (username) => {
     return '';
   }
   
-  // First sanitize as text
+  // First decode HTML entities and sanitize
   let clean = sanitizeText(username);
   
-  // Only allow alphanumeric, spaces, hyphens, underscores, and accented characters
-  clean = clean.replace(/[^a-zA-Z0-9\s\-_àâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ]/g, '');
+  // Only allow alphanumeric, spaces, hyphens, underscores, apostrophes, and accented characters
+  clean = clean.replace(/[^a-zA-Z0-9\s\-_'àâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ]/g, '');
   
   // Collapse multiple spaces
   clean = clean.replace(/\s+/g, ' ');
