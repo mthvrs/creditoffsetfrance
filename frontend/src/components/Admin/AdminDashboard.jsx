@@ -231,6 +231,7 @@ function AdminDashboard() {
 
       await axios.delete(`${process.env.REACT_APP_API_URL}/admin/reports/${id}`, config);
       fetchData();
+      fetchStats();
     } catch (err) {
       setError('Erreur lors de la suppression du signalement');
     }
@@ -512,6 +513,18 @@ function AdminDashboard() {
     const start = (currentPage - 1) * itemsPerPage + 1;
     const end = Math.min(currentPage * itemsPerPage, totalItems);
     return `Affichage ${start}-${end} sur ${totalItems}`;
+  };
+
+  const toggleBulkSelect = (id) => {
+    setBulkDeleteIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAll = () => {
+    if (bulkDeleteIds.length === filteredSubmissions.length) {
+      setBulkDeleteIds([]);
+    } else {
+      setBulkDeleteIds(filteredSubmissions.map((sub) => sub.id));
+    }
   };
 
   if (loading) {
@@ -901,7 +914,7 @@ function AdminDashboard() {
           </Box>
         )}
 
-        {/* IP BANS TAB - Unchanged */}
+        {/* IP BANS TAB */}
         {tabValue === 2 && (
           <Box sx={{ p: 3 }}>
             <Box sx={{ mb: 3 }}>
@@ -993,10 +1006,384 @@ function AdminDashboard() {
           </Box>
         )}
 
-        {/* REPORTS and BULK DELETE tabs remain unchanged - continuing from previous code... */}
+        {/* REPORTS TAB */}
+        {tabValue === 3 && (
+          <Box>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}>
+                    <TableCell>Type</TableCell>
+                    <TableCell>Contenu signalé</TableCell>
+                    <TableCell>Raison</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>IP</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell align="center">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredReports.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+                          {searchQuery ? 'Aucun résultat trouvé' : 'Aucun signalement'}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredReports.map((report) => (
+                      <TableRow key={report.id} hover>
+                        <TableCell>
+                          <Chip 
+                            label={report.entity_type === 'submission' ? 'Soumission' : 'Commentaire'} 
+                            size="small" 
+                            color={report.entity_type === 'submission' ? 'primary' : 'secondary'}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ maxWidth: 300 }}>
+                          {report.entity_type === 'submission' ? (
+                            <Box>
+                              <Typography variant="body2" fontWeight={600}>
+                                {sanitizeText(report.entity_data?.title)}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                CPL: {sanitizeText(report.entity_data?.cpl_title)}
+                              </Typography>
+                            </Box>
+                          ) : (
+                            <Typography variant="body2">{sanitizeText(report.entity_data?.comment_text)}</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>{sanitizeText(report.reason)}</TableCell>
+                        <TableCell>
+                          <Typography variant="caption">{report.email || '-'}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip label={report.submitter_ip} size="small" variant="outlined" />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption">{safeFormatDate(report.created_at)}</Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteReport(report.id)}
+                            color="error"
+                            title="Supprimer le signalement"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                {getPaginationInfo('reports')}
+              </Typography>
+              <Pagination
+                count={pagination.reports.totalPages}
+                page={pagination.reports.currentPage}
+                onChange={(e, page) => handlePageChange('reports', page)}
+                color="primary"
+                showFirstButton
+                showLastButton
+              />
+            </Box>
+          </Box>
+        )}
+
+        {/* BULK DELETE TAB */}
+        {tabValue === 4 && (
+          <Box sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Suppression en groupe
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Sélectionnez les soumissions à supprimer en masse dans l'onglet Soumissions.
+            </Typography>
+            
+            <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={toggleSelectAll}
+                disabled={filteredSubmissions.length === 0}
+              >
+                {bulkDeleteIds.length === filteredSubmissions.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+              </Button>
+              <Typography variant="body2">
+                {bulkDeleteIds.length} élément{bulkDeleteIds.length > 1 ? 's' : ''} sélectionné{bulkDeleteIds.length > 1 ? 's' : ''}
+              </Typography>
+            </Box>
+
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        checked={bulkDeleteIds.length > 0 && bulkDeleteIds.length === filteredSubmissions.length}
+                        indeterminate={bulkDeleteIds.length > 0 && bulkDeleteIds.length < filteredSubmissions.length}
+                        onChange={toggleSelectAll}
+                      />
+                    </TableCell>
+                    <TableCell>Film</TableCell>
+                    <TableCell>CPL</TableCell>
+                    <TableCell>Utilisateur</TableCell>
+                    <TableCell>IP</TableCell>
+                    <TableCell>Date</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredSubmissions.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+                          Aucune soumission disponible
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredSubmissions.map((sub) => (
+                      <TableRow key={sub.id} hover selected={bulkDeleteIds.includes(sub.id)}>
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            checked={bulkDeleteIds.includes(sub.id)}
+                            onChange={() => toggleBulkSelect(sub.id)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">{sanitizeText(sub.title)}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">{sanitizeText(sub.cpl_title)}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">{sanitizeUsername(sub.username)}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip label={sub.submitter_ip} size="small" variant="outlined" />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption">{safeFormatDate(sub.created_at)}</Typography>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                variant="contained"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteIds.length === 0}
+              >
+                Supprimer {bulkDeleteIds.length} élément{bulkDeleteIds.length > 1 ? 's' : ''}
+              </Button>
+            </Box>
+          </Box>
+        )}
       </Card>
 
-      {/* All dialogs remain unchanged */}
+      {/* Delete Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Confirmer la suppression</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Êtes-vous sûr de vouloir supprimer ce{selectedItem?.type === 'submission' ? 'tte soumission' : ' commentaire'} ?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
+          <Button onClick={() => handleDelete(selectedItem?.type, selectedItem?.id)} color="error" variant="contained">
+            Supprimer
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Ban Dialog */}
+      <Dialog open={banDialogOpen} onClose={() => setBanDialogOpen(false)}>
+        <DialogTitle>Bannir l'adresse IP</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>
+            IP à bannir : <strong>{selectedItem?.submitter_ip}</strong>
+          </Typography>
+          <TextField
+            fullWidth
+            label="Raison du bannissement"
+            value={banReason}
+            onChange={(e) => setBanReason(e.target.value)}
+            multiline
+            rows={3}
+            placeholder="Ex: Spam, contenu inapproprié, etc."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBanDialogOpen(false)}>Annuler</Button>
+          <Button onClick={handleBan} color="error" variant="contained" disabled={!banReason.trim()}>
+            Bannir
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete IP Dialog */}
+      <Dialog open={bulkDeleteIpDialogOpen} onClose={() => setBulkDeleteIpDialogOpen(false)}>
+        <DialogTitle>Suppression en masse par IP</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }} color="error.main">
+            ⚠️ Cette action supprimera TOUT le contenu lié à cette IP (soumissions, commentaires, likes).
+          </Typography>
+          <TextField
+            fullWidth
+            label="Adresse IP"
+            value={bulkDeleteIp}
+            onChange={(e) => setBulkDeleteIp(e.target.value)}
+            placeholder="192.168.1.1"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkDeleteIpDialogOpen(false)}>Annuler</Button>
+          <Button onClick={handleBulkDeleteIp} color="error" variant="contained">
+            Supprimer tout
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Modifier la soumission</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Titre CPL"
+                value={editForm.cpl_title}
+                onChange={(e) => setEditForm({ ...editForm, cpl_title: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="FFEC"
+                value={editForm.ffec}
+                onChange={(e) => setEditForm({ ...editForm, ffec: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="FFMC"
+                value={editForm.ffmc}
+                onChange={(e) => setEditForm({ ...editForm, ffmc: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Notes"
+                value={editForm.notes}
+                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                multiline
+                rows={3}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <FormControl fullWidth>
+                <InputLabel>Source</InputLabel>
+                <Select
+                  value={editForm.source}
+                  label="Source"
+                  onChange={(e) => setEditForm({ ...editForm, source: e.target.value })}
+                >
+                  <MenuItem value="Observation en salle">Observation en salle</MenuItem>
+                  <MenuItem value="Inclus dans le DCP">Inclus dans le DCP</MenuItem>
+                  <MenuItem value="Communications du distributeur / labo">Communications du distributeur / labo</MenuItem>
+                  <MenuItem value="Autre">Autre</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            {editForm.source === 'Autre' && (
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="Précisez la source"
+                  value={editForm.source_other}
+                  onChange={(e) => setEditForm({ ...editForm, source_other: e.target.value })}
+                />
+              </Grid>
+            )}
+            <Grid item xs={12}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">Scènes post-générique</Typography>
+                <Button startIcon={<AddIcon />} onClick={addPostCreditScene} size="small">
+                  Ajouter une scène
+                </Button>
+              </Box>
+              {editForm.post_credit_scenes.map((scene, index) => (
+                <Card key={index} sx={{ mb: 2, p: 2 }}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={4}>
+                      <TextField
+                        fullWidth
+                        label="Début"
+                        value={scene.start_time}
+                        onChange={(e) => updatePostCreditScene(index, 'start_time', e.target.value)}
+                        placeholder="HH:MM:SS:FF"
+                      />
+                    </Grid>
+                    <Grid item xs={4}>
+                      <TextField
+                        fullWidth
+                        label="Fin"
+                        value={scene.end_time}
+                        onChange={(e) => updatePostCreditScene(index, 'end_time', e.target.value)}
+                        placeholder="HH:MM:SS:FF"
+                      />
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        color="error"
+                        onClick={() => removePostCreditScene(index)}
+                        sx={{ height: '56px' }}
+                      >
+                        Supprimer
+                      </Button>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Description"
+                        value={scene.description}
+                        onChange={(e) => updatePostCreditScene(index, 'description', e.target.value)}
+                        multiline
+                        rows={2}
+                      />
+                    </Grid>
+                  </Grid>
+                </Card>
+              ))}
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)}>Annuler</Button>
+          <Button onClick={handleEditSubmit} variant="contained" color="primary">
+            Enregistrer
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
