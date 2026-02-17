@@ -59,9 +59,21 @@ export async function initDatabase() {
         } catch (e) {
           // Column likely already exists
         }
+        // Ensure unaccent extension exists even when tables already exist
+        try {
+          await client.query('CREATE EXTENSION IF NOT EXISTS unaccent;');
+          console.log('✅ Unaccent extension verified');
+        } catch (e) {
+          console.error('⚠️ Could not create unaccent extension:', e.message);
+        }
         return;
       }
     }
+
+    // Enable unaccent extension for accent-insensitive search
+    console.log('📦 Enabling unaccent extension...');
+    await client.query('CREATE EXTENSION IF NOT EXISTS unaccent;');
+    console.log('✅ Unaccent extension enabled');
 
     console.log('📋 Creating database tables...');
 
