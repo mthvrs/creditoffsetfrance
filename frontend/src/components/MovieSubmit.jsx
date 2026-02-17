@@ -46,6 +46,7 @@ import NoteIcon from '@mui/icons-material/Note';
 import TheatersIcon from '@mui/icons-material/Theaters';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import axios from 'axios';
 import { sanitizeText, sanitizeUsername } from '../utils/sanitizer';
 
@@ -64,8 +65,9 @@ function MovieSubmit({ movie, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [movieExists, setMovieExists] = useState(false);
+  const [existingMovieData, setExistingMovieData] = useState(null);
   const [cplWarning, setCplWarning] = useState(false);
-  const [timecodeWarning, setTimecodeWarning] = useState({ ffec: false, ffmc: false });
+  const [timecodeWarning, setTimecodeWarning] = useState({ ffec: false, ffmc: false, ffecLong: false, ffmcLong: false });
   const [postCreditWarnings, setPostCreditWarnings] = useState([]);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
@@ -81,6 +83,9 @@ function MovieSubmit({ movie, onSuccess }) {
     try {
       const response = await axios.get(`${process.env.REACT_APP_API_URL}/movies/check/${movie.id}`);
       setMovieExists(response.data.exists);
+      if (response.data.exists) {
+        setExistingMovieData(response.data.movie);
+      }
     } catch (err) {
       console.error('Error checking movie:', err);
     }
@@ -91,8 +96,26 @@ function MovieSubmit({ movie, onSuccess }) {
       return true;
     }
 
-    for (const scene of post_credit_scenes) {
-      if (scene.start_time === '0:00:00' || scene.end_time === '0:00:00') {
+    // Check for incomplete scenes (partially filled)
+    for (let i = 0; i < post_credit_scenes.length; i++) {
+      const scene = post_credit_scenes[i];
+      const hasStart = scene.start_time && scene.start_time.trim() !== '';
+      const hasEnd = scene.end_time && scene.end_time.trim() !== '';
+      
+      if (hasStart && !hasEnd) {
+        setError(`Scène post-crédit ${i + 1} : Le timecode de fin est requis`);
+        return false;
+      }
+      if (!hasStart && hasEnd) {
+        setError(`Scène post-crédit ${i + 1} : Le timecode de début est requis`);
+        return false;
+      }
+      
+      if (scene.start_time === '0:00:00' || scene.start_time === '00:00:00') {
+        setError('Les timecodes des scènes post-crédit ne peuvent pas être 0:00:00');
+        return false;
+      }
+      if (scene.end_time === '0:00:00' || scene.end_time === '00:00:00') {
         setError('Les timecodes des scènes post-crédit ne peuvent pas être 0:00:00');
         return false;
       }
@@ -101,15 +124,22 @@ function MovieSubmit({ movie, onSuccess }) {
   };
 
   const checkPostCreditWarnings = () => {
+    if (!movie.runtime) return;
+    
     const warnings = [];
 
     post_credit_scenes.forEach((scene, index) => {
       let shouldWarn = false;
 
+      // Check if timecode is too short
       if (scene.start_time && scene.start_time !== '0:00:00') {
         const [hours, minutes] = scene.start_time.split(':').map(Number);
         const totalMinutes = hours * 60 + minutes;
         if (totalMinutes < 30) {
+          shouldWarn = true;
+        }
+        // Check if timecode exceeds movie length
+        if (totalMinutes > movie.runtime) {
           shouldWarn = true;
         }
       }
@@ -118,6 +148,10 @@ function MovieSubmit({ movie, onSuccess }) {
         const [hours, minutes] = scene.end_time.split(':').map(Number);
         const totalMinutes = hours * 60 + minutes;
         if (totalMinutes < 30) {
+          shouldWarn = true;
+        }
+        // Check if timecode exceeds movie length
+        if (totalMinutes > movie.runtime) {
           shouldWarn = true;
         }
       }
@@ -132,7 +166,7 @@ function MovieSubmit({ movie, onSuccess }) {
 
   const validateTimecode = (field, value) => {
     if (!value || !movie.runtime) {
-      setTimecodeWarning((prev) => ({ ...prev, [field]: false }));
+      setTimecodeWarning((prev) => ({ ...prev, [field]: false, [`${field}Long`]: false }));
       return;
     }
 
@@ -144,9 +178,14 @@ function MovieSubmit({ movie, onSuccess }) {
     const totalMinutes = hours * 60 + minutes;
     const movieRuntimeMinutes = movie.runtime;
 
-    const isSuspicious = totalMinutes < movieRuntimeMinutes * 0.5;
+    const isSuspiciouslyShort = totalMinutes < movieRuntimeMinutes * 0.5;
+    const isTooLong = totalMinutes > movieRuntimeMinutes;
 
-    setTimecodeWarning((prev) => ({ ...prev, [field]: isSuspicious }));
+    setTimecodeWarning((prev) => ({ 
+      ...prev, 
+      [field]: isSuspiciouslyShort,
+      [`${field}Long`]: isTooLong
+    }));
   };
 
   const handleChange = (field, value) => {
@@ -215,6 +254,11 @@ function MovieSubmit({ movie, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.username || formData.username.trim() === '') {
+      setError("Le nom d'utilisateur est requis");
+      return;
+    }
 
     if (!validatePostCreditScenes()) {
       return;
@@ -288,7 +332,7 @@ function MovieSubmit({ movie, onSuccess }) {
         notes: formData.notes ? sanitizeText(formData.notes) : null,
         source: formData.source,
         source_other: formData.source === 'Autre' ? sanitizeText(formData.source_other) : null,
-        username: formData.username ? sanitizeUsername(formData.username) : null,
+        username: sanitizeUsername(formData.username),
         post_credit_scenes: post_credit_scenes
           .filter((s) => s.start_time && s.end_time)
           .map((s, idx) => ({
@@ -317,7 +361,7 @@ function MovieSubmit({ movie, onSuccess }) {
       });
       setPostCreditScenes([]);
       setCplWarning(false);
-      setTimecodeWarning({ ffec: false, ffmc: false });
+      setTimecodeWarning({ ffec: false, ffmc: false, ffecLong: false, ffmcLong: false });
 
       const movie_id = response.data.submission.movie_id;
       onSuccess(movie_id);
@@ -360,8 +404,18 @@ function MovieSubmit({ movie, onSuccess }) {
           </Box>
 
           {movieExists && (
-            <Alert severity="warning" icon={<WarningIcon />} sx={{ mb: 2 }}>
-              Ce film existe déjà dans la base. Vous ajoutez une nouvelle version.
+            <Alert severity="error" icon={<ErrorOutlineIcon />} sx={{ mb: 2 }}>
+              <Typography variant="body2" fontWeight="600" gutterBottom>
+                ⚠️ Ce film existe déjà dans la base de données !
+              </Typography>
+              <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                Vous êtes sur le point d'ajouter une <strong>nouvelle version</strong>. Assurez-vous qu'il s'agit bien d'une version différente (autre CPL, autre DCP, autre format) et non d'un doublon.
+              </Typography>
+              {existingMovieData && existingMovieData.submissioncount > 0 && (
+                <Typography variant="body2" sx={{ fontSize: '0.85rem', mt: 1, fontStyle: 'italic' }}>
+                  {existingMovieData.submissioncount} version(s) déjà enregistrée(s) pour ce film.
+                </Typography>
+              )}
             </Alert>
           )}
 
@@ -439,12 +493,13 @@ function MovieSubmit({ movie, onSuccess }) {
 
             <TextField
               fullWidth
-              label="Nom d'utilisateur (facultatif)"
+              required
+              label="Nom d'utilisateur"
               placeholder="Votre pseudo"
               value={formData.username}
               onChange={(e) => handleChange('username', e.target.value)}
               sx={{ mb: 2 }}
-              helperText="Sera sauvegardé pour vos futures soumissions"
+              helperText="Requis - Sera sauvegardé pour vos futures soumissions"
               inputProps={{ maxLength: 150 }}
             />
 
@@ -493,6 +548,11 @@ function MovieSubmit({ movie, onSuccess }) {
                     Ce timecode semble court. Assurez-vous d'utiliser le <strong>temps écoulé</strong> depuis le début du film, et non l'offset (temps restant) qu'utilisait l'ancienne version du site.
                   </Alert>
                 </Collapse>
+                <Collapse in={timecodeWarning.ffecLong}>
+                  <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 1, fontSize: '0.85rem' }}>
+                    Ce timecode dépasse la durée du film ({movie.runtime} min). Vérifiez qu'il n'y a pas d'erreur.
+                  </Alert>
+                </Collapse>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -522,6 +582,11 @@ function MovieSubmit({ movie, onSuccess }) {
                 <Collapse in={timecodeWarning.ffmc}>
                   <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 1, fontSize: '0.85rem' }}>
                     Ce timecode semble court. Assurez-vous d'utiliser le <strong>temps écoulé</strong> depuis le début du film, et non l'offset (temps restant) qu'utilisait l'ancienne version du site.
+                  </Alert>
+                </Collapse>
+                <Collapse in={timecodeWarning.ffmcLong}>
+                  <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 1, fontSize: '0.85rem' }}>
+                    Ce timecode dépasse la durée du film ({movie.runtime} min). Vérifiez qu'il n'y a pas d'erreur.
                   </Alert>
                 </Collapse>
               </Grid>
@@ -602,7 +667,7 @@ function MovieSubmit({ movie, onSuccess }) {
             <Divider sx={{ my: 3 }} />
 
             <Box sx={{ mb: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                 <Typography variant="subtitle1" fontWeight="600">
                   Scènes post-crédit (facultatives)
                 </Typography>
@@ -610,6 +675,9 @@ function MovieSubmit({ movie, onSuccess }) {
                   Ajouter
                 </Button>
               </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.85rem' }}>
+                Si vous ajoutez une scène, les timecodes de <strong>début ET fin</strong> sont obligatoires.
+              </Typography>
 
               {post_credit_scenes.map((scene, index) => (
                 <Box key={index}>
@@ -626,8 +694,9 @@ function MovieSubmit({ movie, onSuccess }) {
                       <Grid item xs={6}>
                         <TextField
                           fullWidth
+                          required
                           size="small"
-                          label="Début"
+                          label="Début (requis)"
                           placeholder="1:50:00"
                           value={scene.start_time}
                           onChange={(e) => updatePostCreditScene(index, 'start_time', e.target.value)}
@@ -638,11 +707,13 @@ function MovieSubmit({ movie, onSuccess }) {
                       <Grid item xs={6}>
                         <TextField
                           fullWidth
+                          required
                           size="small"
-                          label="Fin"
+                          label="Fin (requis)"
                           placeholder="1:52:30"
                           value={scene.end_time}
                           onChange={(e) => updatePostCreditScene(index, 'end_time', e.target.value)}
+                          onBlur={checkPostCreditWarnings}
                           helperText="H:MM:SS"
                         />
                       </Grid>
@@ -663,7 +734,7 @@ function MovieSubmit({ movie, onSuccess }) {
 
                   <Collapse in={postCreditWarnings.includes(index)}>
                     <Alert severity="warning" icon={<WarningIcon />} sx={{ mb: 2, fontSize: '0.85rem' }}>
-                      Ce timecode semble court pour une scène post-crédit. Assurez-vous d'utiliser le <strong>temps écoulé</strong> depuis le début du film (pas le temps restant).
+                      Ce timecode semble incohérent. Vérifiez qu'il correspond bien à une scène post-crédit et qu'il n'excède pas la durée du film.
                     </Alert>
                   </Collapse>
                 </Box>
@@ -764,17 +835,15 @@ function MovieSubmit({ movie, onSuccess }) {
           </Paper>
 
           {/* Username - SANITIZED */}
-          {formData.username && (
-            <Paper sx={{ p: 2, mb: 2, background: 'rgba(255, 255, 255, 0.03)' }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                <PersonIcon fontSize="small" />
-                Nom d'utilisateur
-              </Typography>
-              <Typography variant="body1">
-                {sanitizeUsername(formData.username)}
-              </Typography>
-            </Paper>
-          )}
+          <Paper sx={{ p: 2, mb: 2, background: 'rgba(255, 255, 255, 0.03)' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+              <PersonIcon fontSize="small" />
+              Nom d'utilisateur
+            </Typography>
+            <Typography variant="body1">
+              {sanitizeUsername(formData.username)}
+            </Typography>
+          </Paper>
 
           {/* Timecodes */}
           <Paper sx={{ p: 2, mb: 2, background: 'rgba(255, 255, 255, 0.03)' }}>
@@ -788,9 +857,9 @@ function MovieSubmit({ movie, onSuccess }) {
                   FFEC (Générique animé)
                 </Typography>
                 <Chip label={formData.ffec} color="primary" sx={{ mt: 0.5 }} />
-                {timecodeWarning.ffec && (
+                {(timecodeWarning.ffec || timecodeWarning.ffecLong) && (
                   <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 1, fontSize: '0.75rem' }}>
-                    Timecode court détecté
+                    Timecode suspect détecté
                   </Alert>
                 )}
               </Grid>
@@ -799,9 +868,9 @@ function MovieSubmit({ movie, onSuccess }) {
                   FFMC (Générique déroulant)
                 </Typography>
                 <Chip label={formData.ffmc} color="primary" sx={{ mt: 0.5 }} />
-                {timecodeWarning.ffmc && (
+                {(timecodeWarning.ffmc || timecodeWarning.ffmcLong) && (
                   <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 1, fontSize: '0.75rem' }}>
-                    Timecode court détecté
+                    Timecode suspect détecté
                   </Alert>
                 )}
               </Grid>
@@ -853,7 +922,7 @@ function MovieSubmit({ movie, onSuccess }) {
                     )}
                     {postCreditWarnings.includes(index) && (
                       <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 1, fontSize: '0.75rem' }}>
-                        Timecode court détecté
+                        Timecode suspect détecté
                       </Alert>
                     )}
                   </Box>
@@ -862,10 +931,12 @@ function MovieSubmit({ movie, onSuccess }) {
             </Paper>
           )}
 
-          {/* CPL Warning */}
-          {cplWarning && (
-            <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 2 }}>
-              Le titre CPL ne correspond pas au format standard détecté.
+          {/* Duplicate movie warning in confirmation */}
+          {movieExists && (
+            <Alert severity="warning" icon={<WarningIcon />} sx={{ mb: 2 }}>
+              <Typography variant="body2" fontWeight="600">
+                Rappel : Ce film existe déjà dans la base. Vous ajoutez une nouvelle version.
+              </Typography>
             </Alert>
           )}
         </DialogContent>
