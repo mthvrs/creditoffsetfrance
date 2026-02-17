@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -15,17 +15,29 @@ import {
   TableRow,
   Paper,
   CircularProgress,
-  InputAdornment,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
 import { sanitizeText } from '../utils/sanitizer';
+import Fuse from 'fuse.js';
 
 function LegacyDataModal({ open, onClose }) {
   const [legacyData, setLegacyData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Configure Fuse.js for fuzzy search with accent handling
+  const fuse = useMemo(() => {
+    return new Fuse(legacyData, {
+      keys: ['title', 'year'],
+      threshold: 0.4, // 0 = exact match, 1 = match anything
+      ignoreLocation: true,
+      useExtendedSearch: false,
+      // This automatically handles accents (rêver matches rever)
+      includeScore: true,
+    });
+  }, [legacyData]);
 
   useEffect(() => {
     if (open) {
@@ -37,15 +49,10 @@ function LegacyDataModal({ open, onClose }) {
     if (searchQuery.trim() === '') {
       setFilteredData(legacyData);
     } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = legacyData.filter(
-        (movie) =>
-          movie.title?.toLowerCase().includes(query) ||
-          movie.year?.toString().includes(query)
-      );
-      setFilteredData(filtered);
+      const results = fuse.search(searchQuery);
+      setFilteredData(results.map(result => result.item));
     }
-  }, [searchQuery, legacyData]);
+  }, [searchQuery, legacyData, fuse]);
 
   const loadLegacyData = async () => {
     try {
@@ -92,7 +99,7 @@ function LegacyDataModal({ open, onClose }) {
 
         <TextField
           fullWidth
-          placeholder="Rechercher un film..."
+          placeholder="Rechercher un film... (ex: 'rever' trouve aussi 'rêver')"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           InputProps={{
