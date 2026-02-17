@@ -6,17 +6,36 @@
 import DOMPurify from 'dompurify';
 
 /**
+ * Decode HTML entities
+ * @param {string} text - Text that may contain HTML entities
+ * @returns {string} - Text with decoded entities
+ */
+const decodeHtmlEntities = (text) => {
+  if (!text || typeof text !== 'string') {
+    return '';
+  }
+  
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+};
+
+/**
  * Sanitize text content - removes all HTML and returns plain text
+ * Also decodes HTML entities to display them properly
  * @param {string} text - Raw text that may contain HTML
- * @returns {string} - Plain text with HTML stripped
+ * @returns {string} - Plain text with HTML stripped and entities decoded
  */
 export const sanitizeText = (text) => {
   if (!text || typeof text !== 'string') {
     return '';
   }
   
-  // Configure DOMPurify to strip all HTML tags (plaintext mode)
-  const clean = DOMPurify.sanitize(text, {
+  // First decode any HTML entities (like &#x27; or &amp;)
+  const decoded = decodeHtmlEntities(text);
+  
+  // Then configure DOMPurify to strip all HTML tags (plaintext mode)
+  const clean = DOMPurify.sanitize(decoded, {
     ALLOWED_TAGS: [], // No HTML tags allowed
     ALLOWED_ATTR: [], // No attributes allowed
     KEEP_CONTENT: true, // Keep the text content
@@ -58,8 +77,11 @@ export const sanitizeForDisplay = (text) => {
     return '';
   }
   
+  // Decode HTML entities first
+  const decoded = decodeHtmlEntities(text);
+  
   // Remove all HTML tags and dangerous content
-  const clean = DOMPurify.sanitize(text, {
+  const clean = DOMPurify.sanitize(decoded, {
     ALLOWED_TAGS: [], // Plaintext only
     ALLOWED_ATTR: [],
     KEEP_CONTENT: true,
