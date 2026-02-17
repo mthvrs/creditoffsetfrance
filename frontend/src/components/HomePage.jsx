@@ -286,7 +286,8 @@ function HomePage() {
           </Link>
           , et à Cantien "gordesch" Collinet pour la première version du site !
         </Typography>
-        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+        
+        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4, flexWrap: 'wrap', alignItems: 'center', mb: 3 }}>
           <Link 
             href="https://unlicense.org/" 
             target="_blank" 
@@ -320,22 +321,6 @@ function HomePage() {
             Données via TMDB
           </Link>
           <Link 
-            href="https://paypal.me/MathisIvars" 
-            target="_blank" 
-            rel="noopener" 
-            sx={{ 
-              color: 'primary.main',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.5,
-              textDecoration: 'none',
-              '&:hover': { textDecoration: 'underline' }
-            }}
-          >
-            <FaPaypal size={16} />
-            Contribuer à l'hébergement
-          </Link>
-          <Link 
             href="https://mthv.rs" 
             target="_blank" 
             rel="noopener" 
@@ -366,9 +351,45 @@ function HomePage() {
             Contact
           </Link>
         </Box>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-          Problèmes, questions, commentaires, accès aux données, ... contactez-moi !
-        </Typography>
+
+        {/* Hosting Contribution Banner */}
+        <Box
+          sx={{
+            mt: 3,
+            p: 3,
+            background: 'rgba(245, 158, 11, 0.15)',
+            borderRadius: 2,
+            border: '2px solid rgba(245, 158, 11, 0.4)',
+            maxWidth: '800px',
+            mx: 'auto',
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 700, color: 'rgb(245, 198, 71)', mb: 2 }}>
+            Contribuez à l’hébergement du site !
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6 }}>
+            CreditOffset.FR est hébergé par les sociétés françaises Gandi (domaine) et OVH (serveur). Les frais annuels s’élèvent à une vingtaine d’euros pour le domaine, et une soixantaine d’euros pour le serveur virtuel. Si ce projet vous est utile, n’hésitez pas à le soutenir en{' '}
+            <Link
+              href="https://paypal.me/MathisIvars"
+              target="_blank"
+              rel="noopener"
+              sx={{
+                color: 'rgb(245, 198, 71)',
+                fontWeight: 600,
+                textDecoration: 'underline',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
+                '&:hover': {
+                  color: 'rgb(255, 218, 111)',
+                },
+              }}
+            >
+              <FaPaypal size={14} />
+              contribuant à ses frais d’hébergement !
+            </Link>
+          </Typography>
+        </Box>
       </Box>
     </Box>
   );
