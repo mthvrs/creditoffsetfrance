@@ -22,6 +22,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import ClearIcon from '@mui/icons-material/Clear';
 import axios from 'axios';
 import { sanitizeText } from '../utils/sanitizer';
+import Fuse from 'fuse.js';
 
 function DatabaseSearch({ onMovieClick }) {
   const [query, setQuery] = useState('');
@@ -29,6 +30,32 @@ function DatabaseSearch({ onMovieClick }) {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [legacyMatches, setLegacyMatches] = useState(0);
+  const [legacyData, setLegacyData] = useState([]);
+  const [legacyFuse, setLegacyFuse] = useState(null);
+
+  // Load legacy data once on mount
+  useEffect(() => {
+    const loadLegacyData = async () => {
+      try {
+        const response = await fetch(`${process.env.PUBLIC_URL}/legacy_data.json`);
+        const data = await response.json();
+        setLegacyData(data);
+        
+        // Initialize Fuse.js for legacy data search
+        const fuse = new Fuse(data, {
+          keys: ['title', 'year'],
+          threshold: 0.4,
+          ignoreLocation: true,
+          includeScore: true,
+        });
+        setLegacyFuse(fuse);
+      } catch (err) {
+        console.error('Error loading legacy data:', err);
+      }
+    };
+    
+    loadLegacyData();
+  }, []);
 
   const searchDatabase = async (searchQuery) => {
     if (searchQuery.length < 2) {
@@ -48,15 +75,11 @@ function DatabaseSearch({ onMovieClick }) {
         }),
       ]);
 
-      // Check legacy data
-      try {
-        const legacyRes = await fetch(`${process.env.PUBLIC_URL}/legacy_data.json`);
-        const legacyData = await legacyRes.json();
-        const legacyResponse = legacyData.filter((movie) =>
-          movie.title.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-        setLegacyMatches(legacyResponse.length);
-      } catch (err) {
+      // Check legacy data with Fuse.js (fuzzy search with accent handling)
+      if (legacyFuse) {
+        const legacyResults = legacyFuse.search(searchQuery);
+        setLegacyMatches(legacyResults.length);
+      } else {
         setLegacyMatches(0);
       }
 
@@ -98,7 +121,7 @@ function DatabaseSearch({ onMovieClick }) {
 
         <TextField
           fullWidth
-          placeholder="Rechercher un film déjà soumis..."
+          placeholder="Rechercher un film déjà soumis... (ex: 'rever' trouve aussi 'rêver')"
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
           InputProps={{
