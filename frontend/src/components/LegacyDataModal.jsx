@@ -27,15 +27,22 @@ function LegacyDataModal({ open, onClose, initialSearch = '' }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Configure Fuse.js with stricter settings for more relevant results
+  // Configure Fuse.js with stricter settings and field weights
   const fuse = useMemo(() => {
     return new Fuse(legacyData, {
-      keys: ['title', 'year'],
-      threshold: 0.2, // Much stricter - only minor typos and accents
-      distance: 50, // How far to search in the text
-      ignoreLocation: true,
+      keys: [
+        { name: 'title', weight: 1 }, // Title is most important
+        { name: 'year', weight: 0.5 } // Year is less important
+      ],
+      threshold: 0.2, // Strict - only minor typos and accents
+      distance: 50,
+      ignoreLocation: true, // Don't care where in string match occurs
       includeScore: true,
-      minMatchCharLength: 2, // Minimum length of matched patterns
+      minMatchCharLength: 2,
+      // These options improve word-boundary matching
+      findAllMatches: false, // Only return best match per item
+      shouldSort: true, // Sort by score
+      fieldNormWeight: 1, // Don't penalize short fields
     });
   }, [legacyData]);
 
@@ -53,7 +60,42 @@ function LegacyDataModal({ open, onClose, initialSearch = '' }) {
       setFilteredData(legacyData);
     } else {
       const results = fuse.search(searchQuery);
-      setFilteredData(results.map(result => result.item));
+      
+      // Custom re-sorting to prioritize exact matches and word starts
+      const sortedResults = results.sort((a, b) => {
+        const queryLower = searchQuery.toLowerCase();
+        const aTitleLower = a.item.title.toLowerCase();
+        const bTitleLower = b.item.title.toLowerCase();
+        
+        // Remove accents for comparison
+        const normalizeStr = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const queryNorm = normalizeStr(queryLower);
+        const aTitleNorm = normalizeStr(aTitleLower);
+        const bTitleNorm = normalizeStr(bTitleLower);
+        
+        // Priority 1: Exact match (with or without accents)
+        const aExact = aTitleNorm === queryNorm;
+        const bExact = bTitleNorm === queryNorm;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        
+        // Priority 2: Starts with query (word boundary)
+        const aStarts = aTitleNorm.startsWith(queryNorm);
+        const bStarts = bTitleNorm.startsWith(queryNorm);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        
+        // Priority 3: Contains as whole word
+        const aWordBoundary = new RegExp(`\\b${queryNorm}`, 'i').test(aTitleNorm);
+        const bWordBoundary = new RegExp(`\\b${queryNorm}`, 'i').test(bTitleNorm);
+        if (aWordBoundary && !bWordBoundary) return -1;
+        if (!aWordBoundary && bWordBoundary) return 1;
+        
+        // Priority 4: Fuse.js score (lower is better)
+        return a.score - b.score;
+      });
+      
+      setFilteredData(sortedResults.map(result => result.item));
     }
   }, [searchQuery, legacyData, fuse]);
 
