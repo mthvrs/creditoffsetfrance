@@ -1,0 +1,23 @@
+{
+  "name": "creditoffsetfrance",
+  "version": "1.0.0",
+  "description": "Credit Offset France - Movie credits timing tracker",
+  "type": "module",
+  "scripts": {
+    "update-legacy": "node scripts/update-legacy-data.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mthvrs/creditoffsetfrance.git"
+  },
+  "keywords": [
+    "movies",
+    "credits",
+    "timing"
+  ],
+  "author": "mthvrs",
+  "license": "ISC",
+  "dependencies": {
+    "jsdom": "^28.1.0"
+  }
+}
