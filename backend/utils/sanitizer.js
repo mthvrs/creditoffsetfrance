@@ -7,7 +7,8 @@ import validator from 'validator';
 
 /**
  * Sanitize user input to plain text only
- * Uses validator's escape() which converts HTML special characters
+ * Uses validator's escape() which converts HTML special characters EXCEPT spaces
+ * validator.escape() only escapes: <, >, &, ', ", /
  * @param {string} input - Raw user input
  * @returns {string} - Sanitized plain text
  */
@@ -16,10 +17,11 @@ export function sanitizeText(input) {
     return '';
   }
 
-  // Trim whitespace
+  // Trim whitespace from edges only
   let sanitized = input.trim();
   
-  // Escape HTML entities - converts <, >, &, ', ", and / to HTML entities
+  // Escape HTML entities - validator.escape() preserves internal spaces
+  // It only escapes: < > & ' " /
   sanitized = validator.escape(sanitized);
   
   // Remove null bytes
@@ -198,6 +200,7 @@ export function sanitizePostCreditScenes(scenes) {
   return scenes.map(scene => {
     const start_time = sanitizeTimecode(scene.start_time || '');
     const end_time = sanitizeTimecode(scene.end_time || '');
+    // sanitizeText preserves spaces - only escapes HTML special chars
     const description = sanitizeText(scene.description || '');
     const scene_order = validator.isInt(String(scene.scene_order), { min: 0 }) 
       ? parseInt(scene.scene_order, 10) 
