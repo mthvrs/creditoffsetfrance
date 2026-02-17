@@ -5,7 +5,6 @@ import { JSDOM } from 'jsdom';
 import dotenv from 'dotenv';
 import pool from '../config/database.js';
 import axios from 'axios';
-import logger from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,7 +17,6 @@ const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 // Search for movie on TMDB
 async function searchMovie(title, year) {
   if (!TMDB_API_KEY) {
-    console.log('⚠️  No TMDB API key, skipping movie lookup');
     return null;
   }
 
@@ -36,27 +34,30 @@ async function searchMovie(title, year) {
       return response.data.results[0];
     }
   } catch (error) {
-    console.log(`❌ Error searching for "${title}":`, error.message);
+    // Silent fail for TMDB lookups
   }
 
   return null;
 }
 
-// Normalize time format from MM:SS or H:MM:SS to 0:MM:SS or H:MM:SS
+// Normalize time format from MM:SS to 0:MM:SS
 function normalizeTime(timeStr) {
-  if (!timeStr || !timeStr.includes(':')) return null;
+  if (!timeStr || !timeStr.trim()) return null;
+  
+  const cleaned = timeStr.trim();
+  if (!cleaned.includes(':')) return null;
 
-  const parts = timeStr.trim().split(':');
+  const parts = cleaned.split(':');
   
   if (parts.length === 2) {
     // MM:SS format -> convert to 0:MM:SS
     return `0:${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
   } else if (parts.length === 3) {
-    // H:MM:SS or HH:MM:SS format
+    // Already H:MM:SS or HH:MM:SS format
     return `${parts[0]}:${parts[1].padStart(2, '0')}:${parts[2].padStart(2, '0')}`;
   }
 
-  return timeStr;
+  return cleaned;
 }
 
 // Parse HTML file and extract movie data
@@ -68,67 +69,54 @@ function parseHtmlFile(filename) {
   const document = dom.window.document;
 
   const movies = [];
-  const rows = document.querySelectorAll('tr');
+  const rows = document.querySelectorAll('tbody tr');
 
-  let currentMovie = {};
+  console.log(`Found ${rows.length} rows in table`);
 
-  rows.forEach(row => {
-    const cells = row.querySelectorAll('td, th');
-    
-    if (cells.length === 0) return;
+  rows.forEach((row, index) => {
+    try {
+      const titleElem = row.querySelector('.show-title');
+      const yearElem = row.querySelector('.show-year');
+      
+      if (!titleElem) return;
 
-    // Look for title
-    const titleCell = row.querySelector('.show-title');
-    if (titleCell) {
-      currentMovie.title = titleCell.textContent.trim();
-    }
-
-    // Look for year
-    const yearCell = row.querySelector('.show-year');
-    if (yearCell) {
-      const yearMatch = yearCell.textContent.match(/\((\d{4})\)/);
-      if (yearMatch) {
-        currentMovie.year = yearMatch[1];
-      }
-    }
-
-    // Look for time values (Pre-COS and COS)
-    const times = [];
-    cells.forEach(cell => {
-      const text = cell.textContent.trim();
-      // Match time format: MM:SS or H:MM:SS or HH:MM:SS
-      if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(text)) {
-        times.push(text);
-      }
-    });
-
-    // If we found times and have a title, process the row
-    if (times.length > 0 && currentMovie.title) {
-      if (times.length === 1) {
-        // Only COS
-        currentMovie.cos = times[0];
-        currentMovie.pre_cos = null;
-      } else if (times.length >= 2) {
-        // Both Pre-COS and COS
-        currentMovie.pre_cos = times[0];
-        currentMovie.cos = times[1];
+      const title = titleElem.textContent.trim();
+      
+      // Extract year from (YYYY) format
+      let year = null;
+      if (yearElem) {
+        const yearMatch = yearElem.textContent.match(/\((\d{4})\)/);
+        if (yearMatch) {
+          year = yearMatch[1];
+        }
       }
 
-      // Normalize times
-      if (currentMovie.cos) {
-        currentMovie.cos = normalizeTime(currentMovie.cos);
-      }
-      if (currentMovie.pre_cos) {
-        currentMovie.pre_cos = normalizeTime(currentMovie.pre_cos);
+      // Get all td elements
+      const cells = row.querySelectorAll('td');
+      
+      // First td is title, second is Pré-COS, third is COS
+      let preCos = null;
+      let cos = null;
+
+      if (cells.length >= 3) {
+        const preCosTxt = cells[1].textContent.trim();
+        const cosTxt = cells[2].textContent.trim();
+        
+        preCos = normalizeTime(preCosTxt);
+        cos = normalizeTime(cosTxt);
       }
 
-      // Add to movies list if we have a COS
-      if (currentMovie.cos) {
-        movies.push({ ...currentMovie });
+      // Only add if we have at least a COS time
+      if (cos) {
+        movies.push({
+          title,
+          year,
+          pre_cos: preCos,
+          cos
+        });
       }
-
-      // Reset for next movie
-      currentMovie = {};
+    } catch (error) {
+      console.error(`Error parsing row ${index + 1}:`, error.message);
     }
   });
 
@@ -138,11 +126,16 @@ function parseHtmlFile(filename) {
 // Insert or get movie from database
 async function upsertMovie(client, movieData) {
   try {
-    // Check if movie exists by title and year
-    const existingMovie = await client.query(
-      'SELECT id, tmdb_id FROM movies WHERE title = $1 AND EXTRACT(YEAR FROM release_date) = $2',
-      [movieData.title, movieData.year]
-    );
+    // Try to find existing movie by title
+    let query = 'SELECT id, tmdb_id FROM movies WHERE LOWER(title) = LOWER($1)';
+    let params = [movieData.title];
+    
+    if (movieData.year) {
+      query += ' AND EXTRACT(YEAR FROM release_date) = $2';
+      params.push(movieData.year);
+    }
+
+    const existingMovie = await client.query(query, params);
 
     if (existingMovie.rows.length > 0) {
       return existingMovie.rows[0].id;
@@ -157,11 +150,15 @@ async function upsertMovie(client, movieData) {
       RETURNING id
     `;
 
+    // Generate unique TMDB ID if no data found
+    const tmdbId = tmdbData?.id || (Math.floor(Math.random() * 9000000) + 9000000);
+    const releaseDate = tmdbData?.release_date || (movieData.year ? `${movieData.year}-01-01` : '2025-01-01');
+
     const values = [
-      tmdbData?.id || Math.floor(Math.random() * 1000000) + 1000000, // Use random ID if no TMDB data
+      tmdbId,
       movieData.title,
       tmdbData?.original_title || movieData.title,
-      tmdbData?.release_date || `${movieData.year}-01-01`,
+      releaseDate,
       tmdbData?.poster_path || null,
       tmdbData?.runtime || null
     ];
@@ -183,16 +180,18 @@ async function insertSubmission(client, movieId, movieData) {
     RETURNING id
   `;
 
-  const ffec = movieData.pre_cos ? movieData.pre_cos : movieData.cos;
+  // FFEC is the start time (either pre-COS or COS)
+  // FFMC is the end time (always COS)
+  const ffec = movieData.pre_cos || movieData.cos;
   const ffmc = movieData.cos;
 
   const values = [
     movieId,
     movieData.title,
-    'Legacy Import',
+    'Historique',
     ffec,
     ffmc,
-    'Imported from historical data (17 Feb 2026)',
+    'Données historiques importées le 17 février 2026',
     'historical',
     'system',
     new Date()
@@ -215,7 +214,7 @@ async function insertPostCreditScene(client, submissionId, movieData) {
     submissionId,
     movieData.pre_cos,
     movieData.cos,
-    'Pre-credit scene (imported from historical data)',
+    'Scène pré-générique',
     1
   ]);
 }
@@ -227,6 +226,7 @@ async function main() {
   if (!fs.existsSync(inputFile)) {
     console.error(`❌ File not found: ${inputFile}`);
     console.log('Please make sure "historicaldata_17Fev2026.html" exists in the project root directory.');
+    console.log(`Expected location: ${inputFile}`);
     process.exit(1);
   }
 
@@ -236,11 +236,16 @@ async function main() {
   const movies = parseHtmlFile(inputFile);
   console.log(`✅ Parsed ${movies.length} movies from HTML\n`);
 
+  if (movies.length === 0) {
+    console.error('❌ No movies found in HTML file. Please check the file format.');
+    process.exit(1);
+  }
+
   // Show sample
-  console.log('📋 Sample (first 3 movies):');
-  movies.slice(0, 3).forEach(movie => {
+  console.log('📋 Sample (first 5 movies):');
+  movies.slice(0, 5).forEach(movie => {
     console.log(`  - ${movie.title} (${movie.year || 'N/A'})`);
-    console.log(`    Pre-COS: ${movie.pre_cos || 'N/A'}, COS: ${movie.cos || 'N/A'}`);
+    console.log(`    Pré-COS: ${movie.pre_cos || 'N/A'}, COS: ${movie.cos || 'N/A'}`);
   });
   console.log('');
 
@@ -252,18 +257,30 @@ async function main() {
 
     let successCount = 0;
     let errorCount = 0;
+    let skippedCount = 0;
 
     console.log('💾 Importing to database...\n');
 
     for (const [index, movieData] of movies.entries()) {
       try {
         // Progress indicator
-        if ((index + 1) % 10 === 0) {
+        if ((index + 1) % 25 === 0) {
           console.log(`⏳ Processed ${index + 1}/${movies.length} movies...`);
         }
 
         // Insert movie
         const movieId = await upsertMovie(client, movieData);
+
+        // Check if submission already exists for this movie
+        const existingSubmission = await client.query(
+          'SELECT id FROM submissions WHERE movie_id = $1 AND source = $2',
+          [movieId, 'historical']
+        );
+
+        if (existingSubmission.rows.length > 0) {
+          skippedCount++;
+          continue;
+        }
 
         // Insert submission
         const submissionId = await insertSubmission(client, movieId, movieData);
@@ -276,7 +293,7 @@ async function main() {
         successCount++;
 
         // Small delay to avoid rate limiting TMDB API
-        if (TMDB_API_KEY && index % 5 === 0) {
+        if (TMDB_API_KEY && index % 10 === 0 && index > 0) {
           await new Promise(resolve => setTimeout(resolve, 250));
         }
 
@@ -289,9 +306,10 @@ async function main() {
     await client.query('COMMIT');
 
     console.log('\n✅ Import complete!');
-    console.log(`   Success: ${successCount}`);
+    console.log(`   Imported: ${successCount}`);
+    console.log(`   Skipped (already exists): ${skippedCount}`);
     console.log(`   Errors: ${errorCount}`);
-    console.log(`   Total: ${movies.length}`);
+    console.log(`   Total processed: ${movies.length}`);
 
   } catch (error) {
     await client.query('ROLLBACK');
