@@ -23,7 +23,8 @@ function validateTimecode(timecode, fieldName) {
     return `${fieldName}: Format invalide (HH:MM:SS attendu)`;
   }
   
-  const pattern = /^(\\d{1,2}):(\\d{2}):(\\d{2})$/;
+  // CRITICAL FIX: Use single backslash \d not double \\d
+  const pattern = /^(\d{1,2}):(\d{2}):(\d{2})$/;
   const match = sanitized.match(pattern);
   
   if (!match) {
