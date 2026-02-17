@@ -21,6 +21,7 @@ function HomePage() {
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [detailMovie, setDetailMovie] = useState(null);
   const [legacyModalOpen, setLegacyModalOpen] = useState(false);
+  const [legacySearchQuery, setLegacySearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -114,6 +115,16 @@ function HomePage() {
     handleMovieSelect(movieToSelect);
   };
 
+  const handleOpenLegacyWithSearch = (searchQuery) => {
+    setLegacySearchQuery(searchQuery);
+    setLegacyModalOpen(true);
+  };
+
+  const handleCloseLegacy = () => {
+    setLegacyModalOpen(false);
+    setLegacySearchQuery('');
+  };
+
   return (
     <Box sx={{ minHeight: 'calc(100vh - 200px)' }}>
       {submitSuccess && (
@@ -131,7 +142,10 @@ function HomePage() {
       <Grid container spacing={4}>
         <Grid item xs={12} lg={5}>
           {/* 1. Database Search */}
-          <DatabaseSearch onMovieClick={handleMovieClick} />
+          <DatabaseSearch 
+            onMovieClick={handleMovieClick} 
+            onOpenLegacy={handleOpenLegacyWithSearch}
+          />
           
           {/* 2. Movie Search & Submit */}
           <MovieSearch onSelectMovie={handleMovieSelect} />
@@ -252,7 +266,8 @@ function HomePage() {
 
       <LegacyDataModal
         open={legacyModalOpen}
-        onClose={() => setLegacyModalOpen(false)}
+        onClose={handleCloseLegacy}
+        initialSearch={legacySearchQuery}
       />
 
       <Box
