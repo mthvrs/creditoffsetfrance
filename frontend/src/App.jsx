@@ -1,14 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Box, Container, Alert, useMediaQuery } from '@mui/material';
 import WarningIcon from '@mui/icons-material/Warning';
 import HomePage from './components/HomePage';
 import AdminLogin from './components/Admin/AdminLogin';
 import AdminDashboard from './components/Admin/AdminDashboard';
-import TMDBStatusBanner from './components/TMDBStatusBanner'; // NEW
+import TMDBStatusBanner from './components/TMDBStatusBanner';
+import WelcomePopup from './components/WelcomePopup';
+import WelcomeBanner from './components/WelcomeBanner';
 
 function App() {
   const isMobile = useMediaQuery('(max-width:768px)');
+  const [forceOpenPopup, setForceOpenPopup] = useState(false);
+
+  const handleBannerClick = () => {
+    setForceOpenPopup(true);
+  };
+
+  const handlePopupClose = () => {
+    setForceOpenPopup(false);
+  };
 
   return (
     <Box sx={{ minHeight: '100vh', background: '#191a1a' }}>
@@ -38,7 +49,13 @@ function App() {
           </Box>
         </Box>
 
-        {/* TMDB Status Banner (NEW) */}
+        {/* Welcome Banner - sous le logo */}
+        <WelcomeBanner onClick={handleBannerClick} />
+
+        {/* Welcome Popup */}
+        <WelcomePopup forceOpen={forceOpenPopup} onClose={handlePopupClose} />
+
+        {/* TMDB Status Banner */}
         <TMDBStatusBanner />
 
         {/* Mobile Warning */}
