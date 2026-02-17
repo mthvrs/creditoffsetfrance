@@ -15,7 +15,9 @@ import {
 function validateTimecode(timecode, fieldName) {
   if (!timecode) return null;
   
-  const sanitized = sanitizeTimecode(timecode);
+  // Trim before sanitizing to avoid whitespace issues
+  const trimmed = timecode.trim();
+  const sanitized = sanitizeTimecode(trimmed);
   
   if (!sanitized) {
     return `${fieldName}: Format invalide (HH:MM:SS attendu)`;
@@ -102,25 +104,25 @@ export const validateSubmission = [
   
   body('ffec')
     .optional()
-    .trim()
+    .customSanitizer((value) => value ? value.trim() : value)
     .custom((value) => {
       if (!value) return true;
       const error = validateTimecode(value, 'FFEC');
       if (error) throw new Error(error);
       return true;
     })
-    .customSanitizer((value) => sanitizeTimecode(value)),
+    .customSanitizer((value) => value ? sanitizeTimecode(value.trim()) : value),
   
   body('ffmc')
     .optional()
-    .trim()
+    .customSanitizer((value) => value ? value.trim() : value)
     .custom((value) => {
       if (!value) return true;
       const error = validateTimecode(value, 'FFMC');
       if (error) throw new Error(error);
       return true;
     })
-    .customSanitizer((value) => sanitizeTimecode(value)),
+    .customSanitizer((value) => value ? sanitizeTimecode(value.trim()) : value),
   
   body('notes')
     .optional()
