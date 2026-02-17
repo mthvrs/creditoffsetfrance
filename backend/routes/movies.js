@@ -14,7 +14,12 @@ const router = express.Router();
  */
 router.get('/', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
+    // Validate and sanitize page parameter
+    let page = parseInt(req.query.page) || 1;
+    if (page < 1 || isNaN(page) || !isFinite(page)) {
+      page = 1; // Default to page 1 for invalid values
+    }
+    
     const limit = 20;
     const offset = (page - 1) * limit;
 
@@ -23,7 +28,6 @@ router.get('/', async (req, res) => {
     const totalMovies = parseInt(countResult.rows[0].count);
     const totalPages = Math.ceil(totalMovies / limit);
 
-    // Get paginated movies
     // Get paginated movies
 const result = await pool.query(`
   SELECT 
@@ -60,9 +64,6 @@ const result = await pool.query(`
   ORDER BY last_update DESC NULLS LAST, m.created_at DESC 
   LIMIT $1 OFFSET $2
 `, [limit, offset]);
-
-
-
 
     res.json({
       movies: result.rows,
