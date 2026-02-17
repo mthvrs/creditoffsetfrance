@@ -580,7 +580,8 @@ router.post('/generate-test-data', authenticateAdmin, async (req, res) => {
 
     const versions = ['VOSTFR', 'VF', 'Version longue', 'EN-FR-OCAP_FR-FR_VF-XX', 'BluRay', 'DCP Standard', 'Version courte'];
     const sources = ['Observation en salle', 'Inclus dans le DCP', 'Communications du distributeur / labo'];
-    const usernames = ['Alice', 'Bob', 'Charlie', 'Diana', 'TestBot', 'Projectionniste42', null, null];
+    // Removed null values - username is now required
+    const usernames = ['Alice', 'Bob', 'Charlie', 'Diana', 'TestBot', 'Projectionniste42', 'CinephileX', 'TechnicienDCP'];
     const notes = [
       'Attention, générique animé pendant 2 minutes',
       'Crédits très courts',
@@ -623,8 +624,8 @@ router.post('/generate-test-data', authenticateAdmin, async (req, res) => {
             let username = usernames[Math.floor(Math.random() * usernames.length)];
             let note = notes[Math.floor(Math.random() * notes.length)];
 
-            // Sanitize username and notes
-            username = username ? sanitizeUsername(username) : null;
+            // Sanitize username and notes - username is always present now
+            username = sanitizeUsername(username);
             note = note ? sanitizeText(note) : null;
 
             const submissionResult = await pool.query(`
@@ -696,11 +697,11 @@ router.post('/generate-test-data', authenticateAdmin, async (req, res) => {
           ];
 
           for (let c = 0; c < numComments; c++) {
-            let commentUsername = usernames[Math.floor(Math.random() * (usernames.length - 1))];
+            let commentUsername = usernames[Math.floor(Math.random() * usernames.length)];
             let comment_text = commentTexts[Math.floor(Math.random() * commentTexts.length)];
             
-            // Sanitize comment data
-            commentUsername = commentUsername ? sanitizeUsername(commentUsername) : 'Anonymous';
+            // Sanitize comment data - username is always present
+            commentUsername = sanitizeUsername(commentUsername);
             comment_text = sanitizeText(comment_text);
             
             await pool.query(`
