@@ -42,14 +42,18 @@ function DatabaseSearch({ onMovieClick, onOpenLegacy }) {
         const data = await response.json();
         setLegacyData(data);
         
-        // Initialize Fuse.js with strict threshold for better accuracy
+        // Initialize Fuse.js with strict threshold and field weights
         const fuse = new Fuse(data, {
-          keys: ['title', 'year'],
+          keys: [
+            { name: 'title', weight: 1 },
+            { name: 'year', weight: 0.5 }
+          ],
           threshold: 0.2, // Stricter - only minor typos and accents
           distance: 50,
           ignoreLocation: true,
           includeScore: true,
           minMatchCharLength: 2,
+          shouldSort: true,
         });
         setLegacyFuse(fuse);
       } catch (err) {
@@ -78,10 +82,44 @@ function DatabaseSearch({ onMovieClick, onOpenLegacy }) {
         }),
       ]);
 
-      // Check legacy data with Fuse.js (fuzzy search with accent handling)
+      // Check legacy data with Fuse.js and custom ranking
       if (legacyFuse) {
         const legacyResults = legacyFuse.search(searchQuery);
-        setLegacyMatches(legacyResults.length);
+        
+        // Apply same smart ranking as LegacyDataModal
+        const sortedResults = legacyResults.sort((a, b) => {
+          const queryLower = searchQuery.toLowerCase();
+          const aTitleLower = a.item.title.toLowerCase();
+          const bTitleLower = b.item.title.toLowerCase();
+          
+          const normalizeStr = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const queryNorm = normalizeStr(queryLower);
+          const aTitleNorm = normalizeStr(aTitleLower);
+          const bTitleNorm = normalizeStr(bTitleLower);
+          
+          // Exact match
+          const aExact = aTitleNorm === queryNorm;
+          const bExact = bTitleNorm === queryNorm;
+          if (aExact && !bExact) return -1;
+          if (!aExact && bExact) return 1;
+          
+          // Starts with
+          const aStarts = aTitleNorm.startsWith(queryNorm);
+          const bStarts = bTitleNorm.startsWith(queryNorm);
+          if (aStarts && !bStarts) return -1;
+          if (!aStarts && bStarts) return 1;
+          
+          // Word boundary
+          const aWordBoundary = new RegExp(`\\b${queryNorm}`, 'i').test(aTitleNorm);
+          const bWordBoundary = new RegExp(`\\b${queryNorm}`, 'i').test(bTitleNorm);
+          if (aWordBoundary && !bWordBoundary) return -1;
+          if (!aWordBoundary && bWordBoundary) return 1;
+          
+          // Fuse score
+          return a.score - b.score;
+        });
+        
+        setLegacyMatches(sortedResults.length);
       } else {
         setLegacyMatches(0);
       }
