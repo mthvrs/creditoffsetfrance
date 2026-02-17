@@ -15,6 +15,7 @@ import {
   Alert,
   InputAdornment,
   IconButton,
+  Link,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import InfoIcon from '@mui/icons-material/Info';
@@ -24,7 +25,7 @@ import axios from 'axios';
 import { sanitizeText } from '../utils/sanitizer';
 import Fuse from 'fuse.js';
 
-function DatabaseSearch({ onMovieClick }) {
+function DatabaseSearch({ onMovieClick, onOpenLegacy }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -41,12 +42,14 @@ function DatabaseSearch({ onMovieClick }) {
         const data = await response.json();
         setLegacyData(data);
         
-        // Initialize Fuse.js for legacy data search
+        // Initialize Fuse.js with strict threshold for better accuracy
         const fuse = new Fuse(data, {
           keys: ['title', 'year'],
-          threshold: 0.4,
+          threshold: 0.2, // Stricter - only minor typos and accents
+          distance: 50,
           ignoreLocation: true,
           includeScore: true,
+          minMatchCharLength: 2,
         });
         setLegacyFuse(fuse);
       } catch (err) {
@@ -111,6 +114,12 @@ function DatabaseSearch({ onMovieClick }) {
     setLegacyMatches(0);
   };
 
+  const handleOpenLegacyWithSearch = () => {
+    if (onOpenLegacy) {
+      onOpenLegacy(query);
+    }
+  };
+
   return (
     <Card sx={{ mb: 3, background: 'rgba(255, 255, 255, 0.03)', border: '2px solid rgba(242, 127, 27, 0.6)', boxShadow: '0 0 20px rgba(242, 127, 27, 0.15)' }}>
       <CardContent>
@@ -146,7 +155,23 @@ function DatabaseSearch({ onMovieClick }) {
         {legacyMatches > 0 && (
           <Alert severity="info" icon={<HistoryIcon />} sx={{ mb: 2 }}>
             <Typography variant="body2">
-              <strong>{legacyMatches}</strong> résultats trouvés dans les archives historiques. Consultez-les également !
+              <strong>{legacyMatches}</strong> résultats trouvés dans les archives historiques.{' '}
+              <Link
+                component="button"
+                variant="body2"
+                onClick={handleOpenLegacyWithSearch}
+                sx={{
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  color: 'info.main',
+                  fontWeight: 600,
+                  '&:hover': {
+                    color: 'info.light',
+                  },
+                }}
+              >
+                Consultez-les également !
+              </Link>
             </Typography>
           </Alert>
         )}
