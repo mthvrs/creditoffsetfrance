@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plan de Test - Credit Offset France</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      padding: 40px;
+    }
+    
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 32px;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 16px;
+    }
+    
+    .progress-bar {
+      background: #f0f0f0;
+      height: 30px;
+      border-radius: 15px;
+      margin-bottom: 30px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    
+    .category {
+      margin-bottom: 40px;
+      border-left: 4px solid #667eea;
+      padding-left: 20px;
+    }
+    
+    .category h2 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 24px;
+    }
+    
+    .test-item {
+      background: #f9f9f9;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 12px;
+      transition: all 0.2s ease;
+    }
+    
+    .test-item:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+    
+    .test-item.checked {
+      background: #e8f5e9;
+      border-color: #4caf50;
+    }
+    
+    .test-item label {
+      display: flex;
+      align-items: flex-start;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .test-item input[type="checkbox"] {
+      width: 24px;
+      height: 24px;
+      margin-right: 15px;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    
+    .test-content {
+      flex: 1;
+    }
+    
+    .test-title {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 5px;
+      font-size: 16px;
+    }
+    
+    .test-description {
+      color: #666;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .priority {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      margin-left: 10px;
+      text-transform: uppercase;
+    }
+    
+    .priority.high {
+      background: #ffebee;
+      color: #c62828;
+    }
+    
+    .priority.medium {
+      background: #fff3e0;
+      color: #ef6c00;
+    }
+    
+    .priority.low {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+    
+    .reset-btn {
+      background: #ff5252;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      margin-top: 20px;
+      transition: background 0.2s;
+    }
+    
+    .reset-btn:hover {
+      background: #ff1744;
+    }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .stat-number {
+      font-size: 36px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎬 Plan de Test - Credit Offset France</h1>
+    <p class="subtitle">Checklist complète avant mise en production</p>
+    
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressBar">0%</div>
+    </div>
+    
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-number" id="totalTests">0</div>
+        <div class="stat-label">Tests Total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="completedTests">0</div>
+        <div class="stat-label">Tests Complétés</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="remainingTests">0</div>
+        <div class="stat-label">Tests Restants</div>
+      </div>
+    </div>
+
+    <!-- DATABASE & INFRASTRUCTURE -->
+    <div class="category">
+      <h2>🗄️ Base de Données & Infrastructure</h2>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Connexion base de données<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier que la connexion PostgreSQL fonctionne et que toutes les tables existent (movies, submissions, comments, likes, comment_likes, reports, post_credit_scenes, ip_bans)</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Extension unaccent PostgreSQL<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier que l'extension unaccent est installée pour la recherche insensible aux accents</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Variables d'environnement<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier TMDB_BEARER_TOKEN, DATABASE_URL, DISCORD_WEBHOOK_* sont configurés</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Health check endpoint<span class="priority high">Critique</span></div>
+            <div class="test-description">GET /health doit retourner {"status": "OK"}</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- SEARCH FUNCTIONALITY -->
+    <div class="category">
+      <h2>🔍 Fonctionnalité de Recherche</h2>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Recherche TMDB basique<span class="priority high">Critique</span></div>
+            <div class="test-description">Rechercher un film populaire (ex: "Inception") et vérifier les résultats</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Validation requête trop courte<span class="priority high">Critique</span></div>
+            <div class="test-description">Rechercher avec 1 caractère, doit retourner erreur 400</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Recherche locale avec accents<span class="priority high">Critique</span></div>
+            <div class="test-description">Rechercher "éléphant" puis "elephant" - doivent retourner les mêmes résultats</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Priorité recherche exacte<span class="priority medium">Important</span></div>
+            <div class="test-description">Les correspondances exactes doivent apparaître en premier</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Recherche titre original<span class="priority medium">Important</span></div>
+            <div class="test-description">La recherche doit fonctionner sur title ET original_title</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Limite 20 résultats<span class="priority low">Standard</span></div>
+            <div class="test-description">Vérifier que la recherche retourne max 20 résultats</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Rate limiting recherche<span class="priority high">Critique</span></div>
+            <div class="test-description">Effectuer 100 recherches rapidement, doit être limité (searchLimiter)</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Caractères spéciaux dans recherche<span class="priority medium">Important</span></div>
+            <div class="test-description">Tester avec caractères SQL: ', ", %, _, etc.</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- MOVIE SUBMISSION -->
+    <div class="category">
+      <h2>📤 Soumission de Films</h2>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Soumission complète valide<span class="priority high">Critique</span></div>
+            <div class="test-description">Soumettre un film avec tous les champs requis (tmdb_id, title, cpl_title, ffec, ffmc)</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Validation FFEC format<span class="priority high">Critique</span></div>
+            <div class="test-description">Tester FFEC invalide (pas au format HH:MM:SS), doit être rejeté</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Validation FFMC format<span class="priority high">Critique</span></div>
+            <div class="test-description">Tester FFMC invalide, doit être rejeté</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Sanitisation XSS<span class="priority high">Critique</span></div>
+            <div class="test-description">Soumettre avec &lt;script&gt;alert('xss')&lt;/script&gt; dans notes, doit être nettoyé</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Sanitisation SQL injection<span class="priority high">Critique</span></div>
+            <div class="test-description">Tester avec ' OR '1'='1 dans les champs texte</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Longueur username<span class="priority medium">Important</span></div>
+            <div class="test-description">Tester username > 50 caractères, doit être limité</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Longueur notes<span class="priority medium">Important</span></div>
+            <div class="test-description">Tester notes > 500 caractères, doit être limité</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Scènes post-générique<span class="priority high">Critique</span></div>
+            <div class="test-description">Ajouter 2-3 scènes post-crédit avec start_time, end_time, description</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Format temps post-crédit<span class="priority high">Critique</span></div>
+            <div class="test-description">Tester format invalide pour start_time/end_time des scènes</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Transaction rollback<span class="priority high">Critique</span></div>
+            <div class="test-description">Forcer une erreur pendant la soumission, vérifier que rien n'est inséré</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Film déjà existant<span class="priority high">Critique</span></div>
+            <div class="test-description">Soumettre le même tmdb_id 2x, doit créer 2 submissions pour 1 movie</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Discord webhook soumission<span class="priority medium">Important</span></div>
+            <div class="test-description">Vérifier que le webhook Discord est envoyé avec toutes les infos</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Rate limiting soumission<span class="priority high">Critique</span></div>
+            <div class="test-description">Tenter 5 soumissions rapides, doit être limité (submitLimiter)</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">IP bannie soumission<span class="priority high">Critique</span></div>
+            <div class="test-description">Avec IP bannie, soumission doit être refusée</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Champs obligatoires manquants<span class="priority high">Critique</span></div>
+            <div class="test-description">Soumettre sans tmdb_id, sans ffec, sans ffmc - doit échouer</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- VOTING SYSTEM -->
+    <div class="category">
+      <h2>👍 Système de Vote</h2>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Like submission<span class="priority high">Critique</span></div>
+            <div class="test-description">Liker une soumission, vérifier like_count incrémenté</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Dislike submission<span class="priority high">Critique</span></div>
+            <div class="test-description">Disliker une soumission, vérifier dislike_count incrémenté</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Toggle vote (même bouton)<span class="priority high">Critique</span></div>
+            <div class="test-description">Cliquer like 2x, doit retirer le vote</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Changer de vote<span class="priority high">Critique</span></div>
+            <div class="test-description">Like puis dislike, doit changer le vote (pas ajouter)</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Vote par IP<span class="priority high">Critique</span></div>
+            <div class="test-description">Un utilisateur ne peut voter qu'une fois par IP</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Auto-report 3 dislikes<span class="priority high">Critique</span></div>
+            <div class="test-description">Atteindre 3 dislikes, webhook Discord auto-report envoyé</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Auto-report 5 dislikes<span class="priority high">Critique</span></div>
+            <div class="test-description">Atteindre 5 dislikes, webhook Discord envoyé</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Auto-report 10 dislikes<span class="priority high">Critique</span></div>
+            <div class="test-description">Atteindre 10 dislikes, webhook Discord envoyé</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Discord webhook vote<span class="priority low">Standard</span></div>
+            <div class="test-description">Vérifier que chaque vote envoie un webhook</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Rate limiting vote<span class="priority high">Critique</span></div>
+            <div class="test-description">Tenter votes rapides multiples, doit être limité (likeLimiter)</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Vote commentaire like<span class="priority high">Critique</span></div>
+            <div class="test-description">Liker un commentaire, vérifier like_count</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Vote commentaire dislike<span class="priority high">Critique</span></div>
+            <div class="test-description">Disliker un commentaire, vérifier dislike_count</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Toggle vote commentaire<span class="priority high">Critique</span></div>
+            <div class="test-description">Cliquer like commentaire 2x, doit retirer le vote</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- COMMENTS SYSTEM -->
+    <div class="category">
+      <h2>💬 Système de Commentaires</h2>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Ajouter commentaire valide<span class="priority high">Critique</span></div>
+            <div class="test-description">Poster un commentaire normal avec username</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Validation longueur commentaire<span class="priority high">Critique</span></div>
+            <div class="test-description">Tester commentaire > 1000 caractères, doit être limité</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Commentaire vide<span class="priority high">Critique</span></div>
+            <div class="test-description">Tenter de poster commentaire vide ou seulement espaces</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Sanitisation XSS commentaire<span class="priority high">Critique</span></div>
+            <div class="test-description">Poster &lt;script&gt;alert()&lt;/script&gt; dans commentaire</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Ordre chronologique commentaires<span class="priority medium">Important</span></div>
+            <div class="test-description">Poster 3 commentaires, vérifier ordre DESC (plus récent en haut)</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Discord webhook commentaire<span class="priority medium">Important</span></div>
+            <div class="test-description">Vérifier webhook Discord avec titre film, username, texte</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Rate limiting commentaire<span class="priority high">Critique</span></div>
+            <div class="test-description">Poster rapidement 5 commentaires, doit être limité</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">IP bannie commentaire<span class="priority high">Critique</span></div>
+            <div class="test-description">Avec IP bannie, commentaire doit être refusé</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Film inexistant<span class="priority medium">Important</span></div>
+            <div class="test-description">Poster commentaire sur movie_id inexistant, doit échouer</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- REPORTING SYSTEM -->
+    <div class="category">
+      <h2>🚨 Système de Signalement</h2>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Signaler submission<span class="priority high">Critique</span></div>
+            <div class="test-description">Signaler une soumission avec raison valide</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Signaler commentaire<span class="priority high">Critique</span></div>
+            <div class="test-description">Signaler un commentaire avec raison valide</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Validation longueur raison<span class="priority high">Critique</span></div>
+            <div class="test-description">Tester raison > 500 caractères, doit être limité</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Email optionnel<span class="priority medium">Important</span></div>
+            <div class="test-description">Signaler avec et sans email, les deux doivent fonctionner</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Format email invalide<span class="priority medium">Important</span></div>
+            <div class="test-description">Tester avec email invalide (pas de @), doit être rejeté</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Discord webhook report submission<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier webhook avec emoji 🚨, titre, version, raison</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Discord webhook report commentaire<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier webhook avec emoji 🚨, film, username, texte</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Stockage rapport en base<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier insertion dans table reports avec report_type correct</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Rate limiting signalement<span class="priority high">Critique</span></div>
+            <div class="test-description">Tenter signalements rapides multiples, doit être limité</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">IP bannie signalement<span class="priority high">Critique</span></div>
+            <div class="test-description">Avec IP bannie, signalement doit être refusé</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- PAGINATION & LISTING -->
+    <div class="category">
+      <h2>📑 Pagination & Affichage</h2>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Page 1 films<span class="priority high">Critique</span></div>
+            <div class="test-description">GET /api/movies?page=1 retourne 20 films max</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Navigation pagination<span class="priority high">Critique</span></div>
+            <div class="test-description">Tester pages 2, 3, dernière page</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Métadonnées pagination<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier currentPage, totalPages, hasNextPage, hasPrevPage</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Tri par dernière mise à jour<span class="priority medium">Important</span></div>
+            <div class="test-description">Films avec soumissions récentes doivent être en haut</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Films sans soumission<span class="priority medium">Important</span></div>
+            <div class="test-description">Vérifier affichage correct des films sans submission</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Compteur commentaires<span class="priority medium">Important</span></div>
+            <div class="test-description">Vérifier comment_count correct pour chaque film</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Page invalide (0, négatif)<span class="priority medium">Important</span></div>
+            <div class="test-description">Tester ?page=0 et ?page=-1, doit retourner page 1</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Page au-delà limite<span class="priority low">Standard</span></div>
+            <div class="test-description">Demander page 9999, doit retourner tableau vide</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- MOVIE DETAILS -->
+    <div class="category">
+      <h2>🎥 Détails Film</h2>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Chargement détails film<span class="priority high">Critique</span></div>
+            <div class="test-description">GET /api/movies/:id retourne movie, submissions, comments</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Toutes soumissions affichées<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier que toutes les versions CPL sont listées</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Scènes post-crédit par soumission<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier array post_credit_scenes avec scene_order correct</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Votes utilisateur affichés<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier user_liked et user_disliked basés sur IP</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Film inexistant 404<span class="priority high">Critique</span></div>
+            <div class="test-description">GET /api/movies/999999 doit retourner 404</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Ordre submissions DESC<span class="priority medium">Important</span></div>
+            <div class="test-description">Vérifier tri par created_at DESC</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Ordre commentaires DESC<span class="priority medium">Important</span></div>
+            <div class="test-description">Vérifier tri par created_at DESC</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- ADMIN FUNCTIONS -->
+    <div class="category">
+      <h2>⚙️ Fonctions Administrateur</h2>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Bannir IP<span class="priority high">Critique</span></div>
+            <div class="test-description">POST /api/admin/ban-ip avec IP et raison</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Débannir IP<span class="priority high">Critique</span></div>
+            <div class="test-description">POST /api/admin/unban-ip</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Lister IPs bannies<span class="priority medium">Important</span></div>
+            <div class="test-description">GET /api/admin/banned-ips retourne liste complète</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Supprimer soumission<span class="priority high">Critique</span></div>
+            <div class="test-description">DELETE /api/admin/submissions/:id supprime avec CASCADE</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Supprimer commentaire<span class="priority high">Critique</span></div>
+            <div class="test-description">DELETE /api/admin/comments/:id supprime avec CASCADE</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Authentification admin<span class="priority high">Critique</span></div>
+            <div class="test-description">Routes admin doivent vérifier ADMIN_TOKEN</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Logs suppression Discord<span class="priority medium">Important</span></div>
+            <div class="test-description">Vérifier webhooks envoyés lors des suppressions</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- STATUS & MONITORING -->
+    <div class="category">
+      <h2>📊 Status & Monitoring</h2>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">TMDB status check<span class="priority high">Critique</span></div>
+            <div class="test-description">GET /api/status retourne statut TMDB API</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Status monitor démarrage<span class="priority medium">Important</span></div>
+            <div class="test-description">Vérifier que tmdbStatusMonitor.start() s'exécute</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Logger fonctionnel<span class="priority medium">Important</span></div>
+            <div class="test-description">Vérifier que logger.error() crée des fichiers logs</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Graceful shutdown SIGTERM<span class="priority medium">Important</span></div>
+            <div class="test-description">kill -TERM doit arrêter proprement le serveur</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Graceful shutdown SIGINT<span class="priority medium">Important</span></div>
+            <div class="test-description">Ctrl+C doit arrêter proprement le serveur</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- SECURITY & PERFORMANCE -->
+    <div class="category">
+      <h2>🔒 Sécurité & Performance</h2>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Helmet headers<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier headers de sécurité (X-Frame-Options, etc.)</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">CORS configuration<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier que CORS est correctement configuré</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Trust proxy configuré<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier 'trust proxy' = 1 pour rate limiting</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Parameterized queries<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier que toutes les queries utilisent $1, $2 (pas de concat)</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Pas de stack traces en prod<span class="priority high">Critique</span></div>
+            <div class="test-description">Forcer erreur, vérifier que stack n'est pas exposé au client</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Connection pooling<span class="priority medium">Important</span></div>
+            <div class="test-description">Vérifier client.release() après chaque transaction</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Temps réponse API<span class="priority medium">Important</span></div>
+            <div class="test-description">Toutes les routes < 500ms en temps normal</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Uncaught exception handler<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier que process.on('uncaughtException') log et exit</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Unhandled rejection handler<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier que process.on('unhandledRejection') log</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- FRONTEND INTEGRATION -->
+    <div class="category">
+      <h2>🎨 Intégration Frontend</h2>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Page d'accueil charge<span class="priority high">Critique</span></div>
+            <div class="test-description">Ouvrir /, vérifier affichage liste films</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Recherche UI responsive<span class="priority high">Critique</span></div>
+            <div class="test-description">Taper dans barre recherche, voir résultats en temps réel</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Formulaire soumission validé<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier validation côté client avant envoi</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Messages erreur affichés<span class="priority high">Critique</span></div>
+            <div class="test-description">Soumettre données invalides, voir message d'erreur clair</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">UI votes mis à jour<span class="priority high">Critique</span></div>
+            <div class="test-description">Cliquer like/dislike, voir compteur changer immédiatement</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Images posters chargent<span class="priority medium">Important</span></div>
+            <div class="test-description">Vérifier que poster_path TMDB s'affiche</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Responsive mobile<span class="priority high">Critique</span></div>
+            <div class="test-description">Tester sur viewport 375px (iPhone), tout doit être utilisable</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Loading states<span class="priority medium">Important</span></div>
+            <div class="test-description">Vérifier spinners pendant chargement API</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Pas d'erreurs console<span class="priority high">Critique</span></div>
+            <div class="test-description">Ouvrir DevTools, aucune erreur JS ne doit apparaître</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- EDGE CASES -->
+    <div class="category">
+      <h2>⚠️ Cas Limites</h2>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Connexion DB perdue<span class="priority high">Critique</span></div>
+            <div class="test-description">Couper DB pendant requête, vérifier erreur gracieuse</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">TMDB API down<span class="priority high">Critique</span></div>
+            <div class="test-description">Simuler timeout TMDB, vérifier message d'erreur</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Discord webhook échoue<span class="priority medium">Important</span></div>
+            <div class="test-description">URL webhook invalide, vérifier que l'opération continue</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Caractères Unicode<span class="priority medium">Important</span></div>
+            <div class="test-description">Tester émojis, chinois, arabe dans textes</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Null/undefined handling<span class="priority high">Critique</span></div>
+            <div class="test-description">Vérifier que champs optionnels null ne causent pas d'erreur</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Concurrent submissions<span class="priority medium">Important</span></div>
+            <div class="test-description">2 users soumettent même film simultanément, pas de race condition</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Large payload<span class="priority medium">Important</span></div>
+            <div class="test-description">Soumettre requête > 10MB, doit être rejetée</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Film sans poster_path<span class="priority medium">Important</span></div>
+            <div class="test-description">Vérifier affichage avec poster null/undefined</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Film sans runtime<span class="priority low">Standard</span></div>
+            <div class="test-description">Vérifier affichage avec runtime null</div>
+          </div>
+        </label>
+      </div>
+      
+      <div class="test-item">
+        <label>
+          <input type="checkbox">
+          <div class="test-content">
+            <div class="test-title">Dates invalides<span class="priority medium">Important</span></div>
+            <div class="test-description">Tester avec release_date future ou très ancienne</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <button class="reset-btn" onclick="resetAll()">🔄 Réinitialiser tous les tests</button>
+  </div>
+
+  <script>
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadProgress();
+      updateStats();
+    });
+
+    // Load saved progress from localStorage
+    function loadProgress() {
+      const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach((checkbox, index) => {
+        const saved = localStorage.getItem(`test-${index}`);
+        if (saved === 'true') {
+          checkbox.checked = true;
+          checkbox.closest('.test-item').classList.add('checked');
+        }
+        
+        checkbox.addEventListener('change', (e) => {
+          localStorage.setItem(`test-${index}`, e.target.checked);
+          if (e.target.checked) {
+            e.target.closest('.test-item').classList.add('checked');
+          } else {
+            e.target.closest('.test-item').classList.remove('checked');
+          }
+          updateStats();
+        });
+      });
+    }
+
+    // Update statistics
+    function updateStats() {
+      const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+      const total = checkboxes.length;
+      const completed = Array.from(checkboxes).filter(cb => cb.checked).length;
+      const remaining = total - completed;
+      const percentage = Math.round((completed / total) * 100);
+
+      document.getElementById('totalTests').textContent = total;
+      document.getElementById('completedTests').textContent = completed;
+      document.getElementById('remainingTests').textContent = remaining;
+      document.getElementById('progressBar').textContent = percentage + '%';
+      document.getElementById('progressBar').style.width = percentage + '%';
+    }
+
+    // Reset all checkboxes
+    function resetAll() {
+      if (!confirm('Êtes-vous sûr de vouloir réinitialiser tous les tests ?')) {
+        return;
+      }
+      
+      const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach((checkbox, index) => {
+        checkbox.checked = false;
+        checkbox.closest('.test-item').classList.remove('checked');
+        localStorage.removeItem(`test-${index}`);
+      });
+      updateStats();
+    }
+  </script>
+</body>
+</html>
