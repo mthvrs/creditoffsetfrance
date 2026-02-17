@@ -352,22 +352,20 @@ function HomePage() {
           </Link>
         </Box>
 
-        {/* Hosting Contribution Banner */}
+        {/* Hosting Contribution Banner - Subtle */}
         <Box
           sx={{
-            mt: 3,
-            p: 3,
-            background: 'rgba(245, 158, 11, 0.15)',
-            borderRadius: 2,
-            border: '2px solid rgba(245, 158, 11, 0.4)',
-            maxWidth: '800px',
-            mx: 'auto',
+            mt: 2,
+            p: 1.5,
+            background: 'rgba(245, 158, 11, 0.08)',
+            borderRadius: 1.5,
+            border: '1px solid rgba(245, 158, 11, 0.25)',
           }}
         >
-          <Typography variant="h6" sx={{ fontWeight: 700, color: 'rgb(245, 198, 71)', mb: 2 }}>
-            Contribuez à l’hébergement du site !
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+            <Box component="span" sx={{ fontWeight: 600, color: 'rgb(245, 198, 71)' }}>
+              Contribuez à l’hébergement du site !
+            </Box>{' '}
             CreditOffset.FR est hébergé par les sociétés françaises Gandi (domaine) et OVH (serveur). Les frais annuels s’élèvent à une vingtaine d’euros pour le domaine, et une soixantaine d’euros pour le serveur virtuel. Si ce projet vous est utile, n’hésitez pas à le soutenir en{' '}
             <Link
               href="https://paypal.me/MathisIvars"
@@ -377,16 +375,16 @@ function HomePage() {
                 color: 'rgb(245, 198, 71)',
                 fontWeight: 600,
                 textDecoration: 'underline',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.5,
+                verticalAlign: 'baseline',
                 '&:hover': {
                   color: 'rgb(255, 218, 111)',
                 },
               }}
             >
-              <FaPaypal size={14} />
-              contribuant à ses frais d’hébergement !
+              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, verticalAlign: 'middle' }}>
+                <FaPaypal size={12} style={{ verticalAlign: 'middle' }} />
+                contribuant à ses frais d’hébergement !
+              </Box>
             </Link>
           </Typography>
         </Box>
