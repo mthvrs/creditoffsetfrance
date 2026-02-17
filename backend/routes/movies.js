@@ -97,7 +97,7 @@ router.get('/search', async (req, res) => {
     // Priority: exact matches > word start matches > substring matches
     const result = await pool.query(
       `SELECT 
-        m.id, m.tmdb_id , m.title, m.original_title, m.release_date, m.poster_path, m.runtime,
+        m.id, m.tmdb_id, m.title, m.original_title, m.release_date, m.poster_path, m.runtime,
         COUNT(s.id) as submission_count,
         -- Prioritize exact matches, then word starts, then substrings
         CASE
@@ -126,19 +126,19 @@ router.get('/search', async (req, res) => {
 });
 
 /**
- * GET /check/:tmdb_id  - Check if movie exists
+ * GET /check/:tmdb_id - Check if movie exists
  */
-router.get('/check/:tmdb_id ', async (req, res) => {
-  const { tmdb_id  } = req.params;
+router.get('/check/:tmdb_id', async (req, res) => {
+  const { tmdb_id } = req.params;
 
   try {
     const result = await pool.query(
       `SELECT m.*, COUNT(s.id) as submissioncount
       FROM movies m
-      LEFT JOIN submissions s ON m.id = s.movie_id 
-      WHERE m.tmdb_id  = $1
+      LEFT JOIN submissions s ON m.id = s.movie_id
+      WHERE m.tmdb_id = $1
       GROUP BY m.id`,
-      [tmdb_id ]
+      [tmdb_id]
     );
 
     if (result.rows.length > 0) {
@@ -158,7 +158,7 @@ router.get('/check/:tmdb_id ', async (req, res) => {
  */
 router.post('/', checkIpBan, submitLimiter, validateSubmission, checkValidation, async (req, res) => {
   let {
-    tmdb_id ,
+    tmdb_id,
     title,
     original_title,
     release_date,
@@ -184,7 +184,7 @@ router.post('/', checkIpBan, submitLimiter, validateSubmission, checkValidation,
   notes = notes ? sanitizeText(notes) : null;
   source_other = source_other ? sanitizeText(source_other) : null;
   username = username ? sanitizeUsername(username) : null;
-  post_credit_scenes = post_credit_scenes ? sanitizePostCreditScenes (post_credit_scenes) : [];
+  post_credit_scenes = post_credit_scenes ? sanitizePostCreditScenes(post_credit_scenes) : [];
 
   const client = await pool.connect();
 
@@ -193,26 +193,26 @@ router.post('/', checkIpBan, submitLimiter, validateSubmission, checkValidation,
 
     // Insert or update movie
     const movieResult = await client.query(
-      `INSERT INTO movies (tmdb_id , title, original_title, release_date, poster_path, runtime)
+      `INSERT INTO movies (tmdb_id, title, original_title, release_date, poster_path, runtime)
       VALUES ($1, $2, $3, $4, $5, $6)
-      ON CONFLICT (tmdb_id ) DO UPDATE SET
+      ON CONFLICT (tmdb_id) DO UPDATE SET
         title = EXCLUDED.title,
         original_title = EXCLUDED.original_title,
         release_date = EXCLUDED.release_date,
         poster_path = EXCLUDED.poster_path,
         runtime = EXCLUDED.runtime
       RETURNING id`,
-      [tmdb_id , title, original_title, release_date || null, poster_path, runtime || null]
+      [tmdb_id, title, original_title, release_date || null, poster_path, runtime || null]
     );
 
     const movie_id = movieResult.rows[0].id;
 
     // Insert submission
     const submissionResult = await client.query(
-      `INSERT INTO submissions (movie_id , cpl_title, version, ffec, ffmc, notes, source, source_other, username, submitter_ip)
+      `INSERT INTO submissions (movie_id, cpl_title, version, ffec, ffmc, notes, source, source_other, username, submitter_ip)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *`,
-      [movie_id , cpl_title, version, ffec, ffmc, notes, source, source_other, username, submitter_ip]
+      [movie_id, cpl_title, version, ffec, ffmc, notes, source, source_other, username, submitter_ip]
     );
 
     const submission_id = submissionResult.rows[0].id;
@@ -293,8 +293,71 @@ router.post('/', checkIpBan, submitLimiter, validateSubmission, checkValidation,
 });
 
 /**
+ * POST /submissions/:id/report - Report a submission with sanitization
+ * IMPORTANT: This route must come BEFORE the voting route to avoid route conflicts
+ */
+router.post('/submissions/:id/report', checkIpBan, submitLimiter, validateReport, sanitizeReportData, async (req, res) => {
+  const { id } = req.params;
+  let { reason, email } = req.body;
+  const submitter_ip = req.ip;
+
+  // Additional sanitization
+  reason = sanitizeText(reason);
+
+  try {
+    const result = await pool.query(
+      `SELECT s.*, m.title, m.tmdb_id
+      FROM submissions s 
+      JOIN movies m ON s.movie_id = m.id 
+      WHERE s.id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Soumission non trouvée' });
+    }
+
+    const submission = result.rows[0];
+
+    // Store report in database
+    await pool.query(
+      `INSERT INTO reports (report_type, entity_id, reason, email, submitter_ip)
+      VALUES ($1, $2, $3, $4, $5)`,
+      ['submission', id, reason, email || null, submitter_ip]
+    );
+
+    // Send Discord webhook
+    const fields = [
+      { name: 'Film', value: submission.title, inline: false },
+      { name: 'CPL/Version', value: submission.cpl_title, inline: false },
+      { name: 'Raison', value: reason.substring(0, 500), inline: false },
+      { name: 'ID Soumission', value: id, inline: true },
+      { name: 'IP', value: submitter_ip, inline: true }
+    ];
+
+    if (email) {
+      fields.push({ name: 'Email', value: email, inline: true });
+    }
+
+    await sendDiscordWebhook('reports', {
+      title: '🚨 Signalement - Version',
+      color: 16744448,
+      fields,
+      timestamp: new Date().toISOString()
+    });
+
+    res.json({ message: 'Signalement envoyé avec succès' });
+  } catch (error) {
+    logger.error('Report submission error', { error: error.message, stack: error.stack, ip: req.ip });
+    console.error('Report submission error:', error);
+    res.status(500).json({ error: 'Erreur lors du signalement' });
+  }
+});
+
+/**
  * POST /submissions/:id/:vote_type - Vote on submission (like/dislike)
  * Includes auto-reporting at dislike thresholds
+ * IMPORTANT: This route must come AFTER the report route to avoid conflicts
  */
 router.post('/submissions/:id/:vote_type', checkIpBan, likeLimiter, async (req, res) => {
   const { id, vote_type } = req.params;
@@ -349,7 +412,7 @@ router.post('/submissions/:id/:vote_type', checkIpBan, likeLimiter, async (req, 
     // AUTO-REPORT: Send Discord webhook when hitting dislike thresholds (3, 5, 10)
     if (vote_type === 'dislike' && [3, 5, 10].includes(dislikeNum)) {
       const submission = await pool.query(
-        `SELECT s.cpl_title, m.title, m.tmdb_id  
+        `SELECT s.cpl_title, m.title, m.tmdb_id
         FROM submissions s 
         JOIN movies m ON s.movie_id = m.id 
         WHERE s.id = $1`,
@@ -413,67 +476,6 @@ router.post('/submissions/:id/:vote_type', checkIpBan, likeLimiter, async (req, 
 });
 
 /**
- * POST /submissions/:id/report - Report a submission with sanitization
- */
-router.post('/submissions/:id/report', checkIpBan, submitLimiter, validateReport, sanitizeReportData, async (req, res) => {
-  const { id } = req.params;
-  let { reason, email } = req.body;
-  const submitter_ip = req.ip;
-
-  // Additional sanitization
-  reason = sanitizeText(reason);
-
-  try {
-    const result = await pool.query(
-      `SELECT s.*, m.title, m.tmdb_id  
-      FROM submissions s 
-      JOIN movies m ON s.movie_id = m.id 
-      WHERE s.id = $1`,
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Soumission non trouvée' });
-    }
-
-    const submission = result.rows[0];
-
-    // Store report in database
-    await pool.query(
-      `INSERT INTO reports (report_type, entity_id, reason, email, submitter_ip)
-      VALUES ($1, $2, $3, $4, $5)`,
-      ['submission', id, reason, email || null, submitter_ip]
-    );
-
-    // Send Discord webhook
-    const fields = [
-      { name: 'Film', value: submission.title, inline: false },
-      { name: 'CPL/Version', value: submission.cpl_title, inline: false },
-      { name: 'Raison', value: reason.substring(0, 500), inline: false },
-      { name: 'ID Soumission', value: id, inline: true },
-      { name: 'IP', value: submitter_ip, inline: true }
-    ];
-
-    if (email) {
-      fields.push({ name: 'Email', value: email, inline: true });
-    }
-
-    await sendDiscordWebhook('reports', {
-      title: '🚨 Signalement - Version',
-      color: 16744448,
-      fields,
-      timestamp: new Date().toISOString()
-    });
-
-    res.json({ message: 'Signalement envoyé avec succès' });
-  } catch (error) {
-    logger.error('Report submission error', { error: error.message, stack: error.stack, ip: req.ip });
-    console.error('Report submission error:', error);
-    res.status(500).json({ error: 'Erreur lors du signalement' });
-  }
-});
-
-/**
  * POST /:id/comments - Add comment with sanitization
  */
 router.post('/:id/comments', checkIpBan, submitLimiter, validateComment, sanitizeCommentData, async (req, res) => {
@@ -487,7 +489,7 @@ router.post('/:id/comments', checkIpBan, submitLimiter, validateComment, sanitiz
 
   try {
     const result = await pool.query(
-      `INSERT INTO comments (movie_id , username, comment_text, submitter_ip)
+      `INSERT INTO comments (movie_id, username, comment_text, submitter_ip)
       VALUES ($1, $2, $3, $4)
       RETURNING id, username, comment_text, created_at`,
       [id, username, comment_text, submitter_ip]
@@ -517,7 +519,71 @@ router.post('/:id/comments', checkIpBan, submitLimiter, validateComment, sanitiz
 });
 
 /**
+ * POST /comments/:id/report - Report a comment with sanitization
+ * IMPORTANT: This route must come BEFORE the comment voting route
+ */
+router.post('/comments/:id/report', checkIpBan, submitLimiter, validateReport, sanitizeReportData, async (req, res) => {
+  const { id } = req.params;
+  let { reason, email } = req.body;
+  const submitter_ip = req.ip;
+
+  // Additional sanitization
+  reason = sanitizeText(reason);
+
+  try {
+    const result = await pool.query(
+      `SELECT c.*, m.title 
+      FROM comments c 
+      JOIN movies m ON c.movie_id = m.id 
+      WHERE c.id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Commentaire non trouvé' });
+    }
+
+    const comment = result.rows[0];
+
+    // Store report in database
+    await pool.query(
+      `INSERT INTO reports (report_type, entity_id, reason, email, submitter_ip)
+      VALUES ($1, $2, $3, $4, $5)`,
+      ['comment', id, reason, email || null, submitter_ip]
+    );
+
+    // Send Discord webhook
+    const fields = [
+      { name: 'Film', value: comment.title, inline: false },
+      { name: 'Utilisateur', value: comment.username, inline: true },
+      { name: 'Commentaire', value: comment.comment_text.substring(0, 500), inline: false },
+      { name: 'Raison', value: reason.substring(0, 500), inline: false },
+      { name: 'ID Commentaire', value: id, inline: true },
+      { name: 'IP Signaleur', value: submitter_ip, inline: true }
+    ];
+
+    if (email) {
+      fields.push({ name: 'Email', value: email, inline: true });
+    }
+
+    await sendDiscordWebhook('reports', {
+      title: '🚨 Signalement - Commentaire',
+      color: 16744448,
+      fields,
+      timestamp: new Date().toISOString()
+    });
+
+    res.json({ message: 'Signalement envoyé avec succès' });
+  } catch (error) {
+    logger.error('Report comment error', { error: error.message, stack: error.stack, ip: req.ip });
+    console.error('Report comment error:', error);
+    res.status(500).json({ error: 'Erreur lors du signalement' });
+  }
+});
+
+/**
  * POST /comments/:id/:vote_type - Vote on comment (like/dislike)
+ * IMPORTANT: This route must come AFTER the comment report route
  */
 router.post('/comments/:id/:vote_type', checkIpBan, likeLimiter, async (req, res) => {
   const { id, vote_type } = req.params;
@@ -605,68 +671,6 @@ router.post('/comments/:id/:vote_type', checkIpBan, likeLimiter, async (req, res
     logger.error('Comment vote error', { error: error.message, stack: error.stack, ip: req.ip });
     console.error('Comment vote error:', error);
     res.status(500).json({ error: "Erreur lors de l'action" });
-  }
-});
-
-/**
- * POST /comments/:id/report - Report a comment with sanitization
- */
-router.post('/comments/:id/report', checkIpBan, submitLimiter, validateReport, sanitizeReportData, async (req, res) => {
-  const { id } = req.params;
-  let { reason, email } = req.body;
-  const submitter_ip = req.ip;
-
-  // Additional sanitization
-  reason = sanitizeText(reason);
-
-  try {
-    const result = await pool.query(
-      `SELECT c.*, m.title 
-      FROM comments c 
-      JOIN movies m ON c.movie_id = m.id 
-      WHERE c.id = $1`,
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Commentaire non trouvé' });
-    }
-
-    const comment = result.rows[0];
-
-    // Store report in database
-    await pool.query(
-      `INSERT INTO reports (report_type, entity_id, reason, email, submitter_ip)
-      VALUES ($1, $2, $3, $4, $5)`,
-      ['comment', id, reason, email || null, submitter_ip]
-    );
-
-    // Send Discord webhook
-    const fields = [
-      { name: 'Film', value: comment.title, inline: false },
-      { name: 'Utilisateur', value: comment.username, inline: true },
-      { name: 'Commentaire', value: comment.comment_text.substring(0, 500), inline: false },
-      { name: 'Raison', value: reason.substring(0, 500), inline: false },
-      { name: 'ID Commentaire', value: id, inline: true },
-      { name: 'IP Signaleur', value: submitter_ip, inline: true }
-    ];
-
-    if (email) {
-      fields.push({ name: 'Email', value: email, inline: true });
-    }
-
-    await sendDiscordWebhook('reports', {
-      title: '🚨 Signalement - Commentaire',
-      color: 16744448,
-      fields,
-      timestamp: new Date().toISOString()
-    });
-
-    res.json({ message: 'Signalement envoyé avec succès' });
-  } catch (error) {
-    logger.error('Report comment error', { error: error.message, stack: error.stack, ip: req.ip });
-    console.error('Report comment error:', error);
-    res.status(500).json({ error: 'Erreur lors du signalement' });
   }
 });
 
