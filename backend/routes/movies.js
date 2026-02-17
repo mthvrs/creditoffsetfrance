@@ -178,8 +178,8 @@ router.post('/', checkIpBan, submitLimiter, validateSubmission, checkValidation,
 
   const submitter_ip = req.ip;
 
-  // Additional sanitization (validation middleware already sanitized, but double-check)
-  title = sanitizeText(title);
+  // IMPORTANT: Do NOT sanitize title and original_title - they come from TMDB (trusted source)
+  // Sanitize only user-submitted content to prevent XSS
   cpl_title = sanitizeText(cpl_title);
   version = version ? sanitizeText(version) : null;
   notes = notes ? sanitizeText(notes) : null;
