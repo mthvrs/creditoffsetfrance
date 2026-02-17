@@ -134,7 +134,7 @@ function LegacyDataModal({ open, onClose }) {
                         </Typography>
                       </TableCell>
                       <TableCell>{movie.year || 'N/A'}</TableCell>
-                      <TableCell>{sanitizeText(movie.precos || '-')}</TableCell>
+                      <TableCell>{sanitizeText(movie.pre_cos || '-')}</TableCell>
                       <TableCell>{sanitizeText(movie.cos || '-')}</TableCell>
                     </TableRow>
                   ))
