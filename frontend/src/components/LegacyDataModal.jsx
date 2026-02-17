@@ -86,9 +86,7 @@ function LegacyDataModal({ open, onClose }) {
             Données historiques de l'ancien site
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Si vous utilisez ces données, n'hésitez pas les recopier sur la nouvelle interface ! <br />
-            <br />
-            Note : Le COS correspond au temps restant tandis que le FFMC correspond au temps écoulé.
+            Si vous utilisez ces données, n'hésitez pas les recopier sur la nouvelle interface !  Note : Le COS (données historiques) correspond au temps restant tandis que le FFMC (nouvelle interface) correspond au temps écoulé.
           </Typography>
         </Box>
 
