@@ -21,30 +21,42 @@ import SearchIcon from '@mui/icons-material/Search';
 import { sanitizeText } from '../utils/sanitizer';
 import Fuse from 'fuse.js';
 
+// Normalize accents helper
+const normalizeAccents = (str) => {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+};
+
 function LegacyDataModal({ open, onClose, initialSearch = '' }) {
   const [legacyData, setLegacyData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Configure Fuse.js with stricter settings and field weights
+  // Pre-process data to add normalized fields for Fuse.js
+  const processedLegacyData = useMemo(() => {
+    return legacyData.map(movie => ({
+      ...movie,
+      normalizedTitle: normalizeAccents(movie.title.toLowerCase()),
+    }));
+  }, [legacyData]);
+
+  // Configure Fuse.js to search on normalized fields
   const fuse = useMemo(() => {
-    return new Fuse(legacyData, {
+    return new Fuse(processedLegacyData, {
       keys: [
-        { name: 'title', weight: 1 }, // Title is most important
-        { name: 'year', weight: 0.5 } // Year is less important
+        { name: 'normalizedTitle', weight: 1 }, // Search normalized title
+        { name: 'year', weight: 0.5 }
       ],
-      threshold: 0.2, // Strict - only minor typos and accents
-      distance: 50,
-      ignoreLocation: true, // Don't care where in string match occurs
+      threshold: 0.3, // Slightly more lenient for better matching
+      distance: 100,
+      ignoreLocation: true,
       includeScore: true,
       minMatchCharLength: 2,
-      // These options improve word-boundary matching
-      findAllMatches: false, // Only return best match per item
-      shouldSort: true, // Sort by score
-      fieldNormWeight: 1, // Don't penalize short fields
+      findAllMatches: false,
+      shouldSort: true,
+      fieldNormWeight: 1,
     });
-  }, [legacyData]);
+  }, [processedLegacyData]);
 
   useEffect(() => {
     if (open) {
@@ -56,38 +68,35 @@ function LegacyDataModal({ open, onClose, initialSearch = '' }) {
   }, [open, initialSearch]);
 
   useEffect(() => {
-    if (searchQuery.trim() === '') {
+    const trimmedQuery = searchQuery.trim();
+    
+    if (trimmedQuery === '') {
       setFilteredData(legacyData);
     } else {
-      const results = fuse.search(searchQuery);
+      // Normalize the search query before searching
+      const normalizedQuery = normalizeAccents(trimmedQuery.toLowerCase());
+      const results = fuse.search(normalizedQuery);
       
       // Custom re-sorting to prioritize exact matches and word starts
       const sortedResults = results.sort((a, b) => {
-        const queryLower = searchQuery.toLowerCase();
-        const aTitleLower = a.item.title.toLowerCase();
-        const bTitleLower = b.item.title.toLowerCase();
+        const aTitleNorm = a.item.normalizedTitle;
+        const bTitleNorm = b.item.normalizedTitle;
         
-        // Remove accents for comparison
-        const normalizeStr = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        const queryNorm = normalizeStr(queryLower);
-        const aTitleNorm = normalizeStr(aTitleLower);
-        const bTitleNorm = normalizeStr(bTitleLower);
-        
-        // Priority 1: Exact match (with or without accents)
-        const aExact = aTitleNorm === queryNorm;
-        const bExact = bTitleNorm === queryNorm;
+        // Priority 1: Exact match
+        const aExact = aTitleNorm === normalizedQuery;
+        const bExact = bTitleNorm === normalizedQuery;
         if (aExact && !bExact) return -1;
         if (!aExact && bExact) return 1;
         
-        // Priority 2: Starts with query (word boundary)
-        const aStarts = aTitleNorm.startsWith(queryNorm);
-        const bStarts = bTitleNorm.startsWith(queryNorm);
+        // Priority 2: Starts with query
+        const aStarts = aTitleNorm.startsWith(normalizedQuery);
+        const bStarts = bTitleNorm.startsWith(normalizedQuery);
         if (aStarts && !bStarts) return -1;
         if (!aStarts && bStarts) return 1;
         
         // Priority 3: Contains as whole word
-        const aWordBoundary = new RegExp(`\\b${queryNorm}`, 'i').test(aTitleNorm);
-        const bWordBoundary = new RegExp(`\\b${queryNorm}`, 'i').test(bTitleNorm);
+        const aWordBoundary = new RegExp(`\\b${normalizedQuery}`, 'i').test(aTitleNorm);
+        const bWordBoundary = new RegExp(`\\b${normalizedQuery}`, 'i').test(bTitleNorm);
         if (aWordBoundary && !bWordBoundary) return -1;
         if (!aWordBoundary && bWordBoundary) return 1;
         
