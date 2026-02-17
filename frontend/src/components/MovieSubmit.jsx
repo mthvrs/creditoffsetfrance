@@ -675,9 +675,6 @@ function MovieSubmit({ movie, onSuccess }) {
                   Ajouter
                 </Button>
               </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.85rem' }}>
-                Si vous ajoutez une scène, les timecodes de <strong>début ET fin</strong> sont obligatoires.
-              </Typography>
 
               {post_credit_scenes.map((scene, index) => (
                 <Box key={index}>

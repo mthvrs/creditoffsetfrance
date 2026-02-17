@@ -284,7 +284,7 @@ function HomePage() {
           <Link href="http://www.projectionniste.net/" target="_blank" rel="noopener" sx={{ color: 'primary.main' }}>
             projectionniste.net
           </Link>
-          , et à Cantien "gordesch" Collinet pour la première version du site !
+          , et à Cantien "gordesch" Collinet pour la première version du site !<br></br>N'hésitez pas à me contacter via le mail ci-dessus ou via le forum (@mthvrs) si vous avez des retours ou questions, si vous souhaitez obtenir les données en brut, etc.
         </Typography>
         
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4, flexWrap: 'wrap', alignItems: 'center', mb: 3 }}>
@@ -363,17 +363,17 @@ function HomePage() {
           }}
         >
           <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-            <Box component="span" sx={{ fontWeight: 600, color: 'rgb(245, 198, 71)' }}>
-              Contribuez à l’hébergement du site !
+            <Box component="span" sx={{ fontWeight: 600, color: '#f27f1b' }}>
+              Contribuez à l’hébergement du site :<br></br>
             </Box>{' '}
-            CreditOffset.FR est hébergé par les sociétés françaises Gandi (domaine) et OVH (serveur). Les frais annuels s’élèvent à une vingtaine d’euros pour le domaine, et une soixantaine d’euros pour le serveur virtuel. Si ce projet vous est utile, n’hésitez pas à le soutenir en{' '}
+            CreditOffset.FR est hébergé par les sociétés françaises Gandi (domaine) et OVH (serveur). Les frais annuels s’élèvent à une vingtaine d’euros pour le domaine, et une soixantaine d’euros pour le serveur virtuel.<br></br> Si ce projet vous est utile, n’hésitez pas à le soutenir en{' '}
             <Link
               href="https://paypal.me/MathisIvars"
               target="_blank"
               rel="noopener"
               sx={{
                 color: 'rgb(245, 198, 71)',
-                fontWeight: 600,
+                fontWeight: 500,
                 textDecoration: 'underline',
                 verticalAlign: 'baseline',
                 '&:hover': {
@@ -383,9 +383,10 @@ function HomePage() {
             >
               <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, verticalAlign: 'middle' }}>
                 <FaPaypal size={12} style={{ verticalAlign: 'middle' }} />
-                contribuant à ses frais d’hébergement !
+                contribuant à ses frais d’hébergement. 
               </Box>
             </Link>
+            {' '} Je vous remercie ! 
           </Typography>
         </Box>
       </Box>
