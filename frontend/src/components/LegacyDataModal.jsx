@@ -21,29 +21,32 @@ import SearchIcon from '@mui/icons-material/Search';
 import { sanitizeText } from '../utils/sanitizer';
 import Fuse from 'fuse.js';
 
-function LegacyDataModal({ open, onClose }) {
+function LegacyDataModal({ open, onClose, initialSearch = '' }) {
   const [legacyData, setLegacyData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Configure Fuse.js for fuzzy search with accent handling
+  // Configure Fuse.js with stricter settings for more relevant results
   const fuse = useMemo(() => {
     return new Fuse(legacyData, {
       keys: ['title', 'year'],
-      threshold: 0.4, // 0 = exact match, 1 = match anything
+      threshold: 0.2, // Much stricter - only minor typos and accents
+      distance: 50, // How far to search in the text
       ignoreLocation: true,
-      useExtendedSearch: false,
-      // This automatically handles accents (rêver matches rever)
       includeScore: true,
+      minMatchCharLength: 2, // Minimum length of matched patterns
     });
   }, [legacyData]);
 
   useEffect(() => {
     if (open) {
       loadLegacyData();
+      if (initialSearch) {
+        setSearchQuery(initialSearch);
+      }
     }
-  }, [open]);
+  }, [open, initialSearch]);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
