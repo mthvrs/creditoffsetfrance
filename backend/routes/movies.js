@@ -11,6 +11,7 @@ const router = express.Router();
 
 /**
  * GET / - Get all movies with pagination
+ * Only returns movies that have at least one submission (no orphaned entries).
  */
 router.get('/', async (req, res) => {
   try {
@@ -23,47 +24,51 @@ router.get('/', async (req, res) => {
     const limit = 20;
     const offset = (page - 1) * limit;
 
-    // Get total count
-    const countResult = await pool.query(`SELECT COUNT(*) FROM movies`);
+    // Count only movies that have at least one submission (avoids phantom entries)
+    const countResult = await pool.query(`
+      SELECT COUNT(*) FROM movies m
+      WHERE EXISTS (SELECT 1 FROM submissions s WHERE s.movie_id = m.id)
+    `);
     const totalMovies = parseInt(countResult.rows[0].count);
     const totalPages = Math.ceil(totalMovies / limit);
 
-    // Get paginated movies
-const result = await pool.query(`
-  SELECT 
-    m.id, 
-    m.title, 
-    m.tmdb_id, 
-    m.release_date, 
-    m.poster_path, 
-    m.runtime,
-    json_agg(json_build_object(
-      'id', s.id, 
-      'cpl_title', s.cpl_title, 
-      'ffec', s.ffec, 
-      'ffmc', s.ffmc, 
-      'created_at', s.created_at,
-      'post_credit_scenes', (
-        SELECT json_agg(json_build_object(
-          'id', pcs.id,
-          'start_time', pcs.start_time,
-          'end_time', pcs.end_time,
-          'description', pcs.description,
-          'scene_order', pcs.scene_order
-        ) ORDER BY pcs.scene_order)
-        FROM post_credit_scenes pcs 
-        WHERE pcs.submission_id = s.id
-      )
-    ) ORDER BY s.created_at DESC) FILTER (WHERE s.id IS NOT NULL)
-    as submissions,
-    (SELECT COUNT(*) FROM comments WHERE movie_id = m.id) as comment_count,
-    (SELECT MAX(s2.created_at) FROM submissions s2 WHERE s2.movie_id = m.id) as last_update
-  FROM movies m 
-  LEFT JOIN submissions s ON m.id = s.movie_id
-  GROUP BY m.id 
-  ORDER BY last_update DESC NULLS LAST, m.created_at DESC 
-  LIMIT $1 OFFSET $2
-`, [limit, offset]);
+    // Get paginated movies — HAVING COUNT(s.id) > 0 ensures orphaned movies are excluded
+    const result = await pool.query(`
+      SELECT 
+        m.id, 
+        m.title, 
+        m.tmdb_id, 
+        m.release_date, 
+        m.poster_path, 
+        m.runtime,
+        json_agg(json_build_object(
+          'id', s.id, 
+          'cpl_title', s.cpl_title, 
+          'ffec', s.ffec, 
+          'ffmc', s.ffmc, 
+          'created_at', s.created_at,
+          'post_credit_scenes', (
+            SELECT json_agg(json_build_object(
+              'id', pcs.id,
+              'start_time', pcs.start_time,
+              'end_time', pcs.end_time,
+              'description', pcs.description,
+              'scene_order', pcs.scene_order
+            ) ORDER BY pcs.scene_order)
+            FROM post_credit_scenes pcs 
+            WHERE pcs.submission_id = s.id
+          )
+        ) ORDER BY s.created_at DESC) FILTER (WHERE s.id IS NOT NULL)
+        as submissions,
+        (SELECT COUNT(*) FROM comments WHERE movie_id = m.id) as comment_count,
+        (SELECT MAX(s2.created_at) FROM submissions s2 WHERE s2.movie_id = m.id) as last_update
+      FROM movies m 
+      LEFT JOIN submissions s ON m.id = s.movie_id
+      GROUP BY m.id 
+      HAVING COUNT(s.id) > 0
+      ORDER BY last_update DESC NULLS LAST, m.created_at DESC 
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
 
     res.json({
       movies: result.rows,
