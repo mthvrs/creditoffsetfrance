@@ -357,6 +357,7 @@ router.delete('/ip-bans/:id', authenticateAdmin, async (req, res) => {
 
 /**
  * POST /bulk-delete-ip - Bulk delete all content from an IP with sanitization
+ * Now also deletes associated reports and comment_likes
  */
 router.post('/bulk-delete-ip', authenticateAdmin, async (req, res) => {
   let { ip_address } = req.body;
@@ -376,21 +377,49 @@ router.post('/bulk-delete-ip', authenticateAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Count what will be deleted
-    const submissionCount = await client.query(
-      'SELECT COUNT(*) FROM submissions WHERE submitter_ip = $1',
+    // Get IDs of submissions and comments to delete their reports
+    const submissionIds = await client.query(
+      'SELECT id FROM submissions WHERE submitter_ip = $1',
       [ip_address]
     );
-    const comment_count = await client.query(
-      'SELECT COUNT(*) FROM comments WHERE submitter_ip = $1',
-      [ip_address]
-    );
-    const like_count = await client.query(
-      'SELECT COUNT(*) FROM likes WHERE submitter_ip = $1',
+    const commentIds = await client.query(
+      'SELECT id FROM comments WHERE submitter_ip = $1',
       [ip_address]
     );
 
-    // Delete all content from this IP
+    // Count what will be deleted
+    const submissionCount = submissionIds.rows.length;
+    const commentCount = commentIds.rows.length;
+    const likeCount = await client.query(
+      'SELECT COUNT(*) FROM likes WHERE submitter_ip = $1',
+      [ip_address]
+    );
+    const commentLikeCount = await client.query(
+      'SELECT COUNT(*) FROM comment_likes WHERE submitter_ip = $1',
+      [ip_address]
+    );
+
+    // Delete reports for these submissions and comments
+    let reportCount = 0;
+    if (submissionIds.rows.length > 0) {
+      const subIds = submissionIds.rows.map(r => r.id);
+      const reportResult = await client.query(
+        'DELETE FROM reports WHERE report_type = $1 AND entity_id = ANY($2::int[])',
+        ['submission', subIds]
+      );
+      reportCount += reportResult.rowCount || 0;
+    }
+    if (commentIds.rows.length > 0) {
+      const comIds = commentIds.rows.map(r => r.id);
+      const reportResult = await client.query(
+        'DELETE FROM reports WHERE report_type = $1 AND entity_id = ANY($2::int[])',
+        ['comment', comIds]
+      );
+      reportCount += reportResult.rowCount || 0;
+    }
+
+    // Delete all content from this IP (cascading will handle likes and post_credit_scenes)
+    await client.query('DELETE FROM comment_likes WHERE submitter_ip = $1', [ip_address]);
     await client.query('DELETE FROM likes WHERE submitter_ip = $1', [ip_address]);
     await client.query('DELETE FROM comments WHERE submitter_ip = $1', [ip_address]);
     await client.query('DELETE FROM submissions WHERE submitter_ip = $1', [ip_address]);
@@ -402,9 +431,11 @@ router.post('/bulk-delete-ip', authenticateAdmin, async (req, res) => {
       color: 15158332,
       fields: [
         { name: '🌐 IP', value: ip_address, inline: false },
-        { name: '📊 Soumissions supprimées', value: submissionCount.rows[0].count, inline: true },
-        { name: '💬 Commentaires supprimés', value: comment_count.rows[0].count, inline: true },
-        { name: '👍 Likes supprimés', value: like_count.rows[0].count, inline: true }
+        { name: '📊 Soumissions supprimées', value: String(submissionCount), inline: true },
+        { name: '💬 Commentaires supprimés', value: String(commentCount), inline: true },
+        { name: '👍 Likes supprimés', value: likeCount.rows[0].count, inline: true },
+        { name: '💬👍 Comment likes supprimés', value: commentLikeCount.rows[0].count, inline: true },
+        { name: '🚩 Signalements supprimés', value: String(reportCount), inline: true }
       ],
       timestamp: new Date().toISOString()
     });
@@ -412,9 +443,11 @@ router.post('/bulk-delete-ip', authenticateAdmin, async (req, res) => {
     res.json({
       message: 'Contenu supprimé',
       deleted: {
-        submissions: parseInt(submissionCount.rows[0].count),
-        comments: parseInt(comment_count.rows[0].count),
-        likes: parseInt(like_count.rows[0].count)
+        submissions: submissionCount,
+        comments: commentCount,
+        likes: parseInt(likeCount.rows[0].count),
+        comment_likes: parseInt(commentLikeCount.rows[0].count),
+        reports: reportCount
       }
     });
   } catch (error) {
@@ -471,64 +504,108 @@ router.put('/submissions/:id', authenticateAdmin, async (req, res) => {
 });
 
 /**
- * DELETE /submissions/:id - Delete submission
+ * DELETE /submissions/:id - Delete submission and associated reports
  */
 router.delete('/submissions/:id', authenticateAdmin, async (req, res) => {
   const { id } = req.params;
 
+  const client = await pool.connect();
   try {
-    const result = await pool.query('DELETE FROM submissions WHERE id = $1 RETURNING *', [id]);
+    await client.query('BEGIN');
 
-    if (result.rows.length === 0) {
+    // Get submission info before deleting
+    const submissionResult = await client.query(
+      'SELECT * FROM submissions WHERE id = $1',
+      [id]
+    );
+
+    if (submissionResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Soumission non trouvée' });
     }
+
+    // Delete associated reports
+    await client.query(
+      'DELETE FROM reports WHERE report_type = $1 AND entity_id = $2',
+      ['submission', id]
+    );
+
+    // Delete submission (cascades to likes and post_credit_scenes via ON DELETE CASCADE)
+    await client.query('DELETE FROM submissions WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
 
     await sendDiscordWebhook('admin', {
       title: '🗑️ Soumission supprimée',
       color: 15158332,
       fields: [
         { name: '🔗 ID', value: `#${id}`, inline: true },
-        { name: '📦 Version', value: result.rows[0].cpl_title, inline: false }
+        { name: '📦 Version', value: submissionResult.rows[0].cpl_title, inline: false }
       ],
       timestamp: new Date().toISOString()
     });
 
-    res.json({ message: 'Soumission supprimée' });
+    res.json({ message: 'Soumission et données associées supprimées' });
   } catch (error) {
+    await client.query('ROLLBACK');
     logger.error('Entity comment or submission delete error:', { error: error.message, stack: error.stack, ip: req.ip });
     console.error('Delete error:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression' });
+  } finally {
+    client.release();
   }
 });
 
 /**
- * DELETE /comments/:id - Delete comment
+ * DELETE /comments/:id - Delete comment and associated reports
  */
 router.delete('/comments/:id', authenticateAdmin, async (req, res) => {
   const { id } = req.params;
 
+  const client = await pool.connect();
   try {
-    const result = await pool.query('DELETE FROM comments WHERE id = $1 RETURNING *', [id]);
+    await client.query('BEGIN');
 
-    if (result.rows.length === 0) {
+    // Get comment info before deleting
+    const commentResult = await client.query(
+      'SELECT * FROM comments WHERE id = $1',
+      [id]
+    );
+
+    if (commentResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Commentaire non trouvé' });
     }
+
+    // Delete associated reports
+    await client.query(
+      'DELETE FROM reports WHERE report_type = $1 AND entity_id = $2',
+      ['comment', id]
+    );
+
+    // Delete comment (cascades to comment_likes via ON DELETE CASCADE)
+    await client.query('DELETE FROM comments WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
 
     await sendDiscordWebhook('admin', {
       title: '🗑️ Commentaire supprimé',
       color: 15158332,
       fields: [
         { name: '🔗 ID', value: `#${id}`, inline: true },
-        { name: '👤 Utilisateur', value: result.rows[0].username, inline: true }
+        { name: '👤 Utilisateur', value: commentResult.rows[0].username, inline: true }
       ],
       timestamp: new Date().toISOString()
     });
 
-    res.json({ message: 'Commentaire supprimé' });
+    res.json({ message: 'Commentaire et données associées supprimés' });
   } catch (error) {
+    await client.query('ROLLBACK');
     logger.error('Entity comment delete error:', { error: error.message, stack: error.stack, ip: req.ip });
     console.error('Delete error:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression' });
+  } finally {
+    client.release();
   }
 });
 
