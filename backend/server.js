@@ -33,13 +33,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS configuration
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'https://creditoffset.fr',
-  'https://www.creditoffset.fr'
-];
+// CORS configuration - Use environment variable with fallback to defaults
+const allowedOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+  : [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://creditoffset.fr',
+      'https://www.creditoffset.fr'
+    ];
 
 app.use(cors({
   origin: (origin, callback) => {
