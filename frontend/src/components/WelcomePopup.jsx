@@ -80,27 +80,30 @@ const WelcomePopup = ({ forceOpen, onClose }) => {
 
       <DialogContent>
         <Typography variant="body1" paragraph>
-          Bienvenue sur la nouvelle version améliorée de Credit Offset France !
+          Bienvenue sur la nouvelle version de Credit Offset France !
         </Typography>
         <Typography variant="body2" paragraph sx={{ color: '#b0b0b0' }}>
-          Cette version apporte de nombreuses améliorations :
+          Voici une liste non exhaustive des changements :
         </Typography>
         <Box component="ul" sx={{ pl: 3, mb: 2, color: '#b0b0b0' }}>
           <li>
-            <Typography variant="body2">Interface modernisée et plus intuitive</Typography>
+            <Typography variant="body2">Avant tout, pas d'inquiétude concernant les anciennes données ! Elles sont préservées dans l'onglet "Consulter les archives historiques", sous l'ancien format d'offset. Si vous les utilisez, pensez à les reporter sur la nouvelle interface ! Ce processus est délicat à automatiser et votre aide est donc la bienvenue.</Typography>
           </li>
           <li>
-            <Typography variant="body2">Données mises à jour en temps réel</Typography>
+            <Typography variant="body2">Afin de mieux suivre la norme SMPTE, le site utilise désormais des timecodes absolus et non relatifs. Comprenez par là que l'on note le début du générique à compter du début du film et non à l'envers à compter de la fin. Ces timecodes sont déjà présents sur certains DCPs plus récents sous la forme de markers FFEC et FFMC. Ce sont donc ces termes qui sont utilisés dans l'interface.</Typography>
           </li>
           <li>
-            <Typography variant="body2">Performances améliorées</Typography>
+            <Typography variant="body2">Le site permet désormais d'accueillir plusieurs versions d'un même film (par exemple un DCP en VOSTFR qui serait plus long qu'en VF, ou même un BluRay !). Vous pouvez également ajouter des scènes postcrédits, utiles pour celles et ceux qui souhaitent plonger à nouveau la salle dans le noir lors de celles-ci.</Typography>
           </li>
           <li>
-            <Typography variant="body2">Nouvelles fonctionnalités de recherche et filtrage</Typography>
+            <Typography variant="body2">Afin de faciliter la communication autour d'erreurs éventuelles, pour préciser certains détails, etc. le site vous permet également de laisser un petit commentaire ou de voter sur les entrées présentes sur le site.</Typography>
+          </li>
+          <li>
+            <Typography variant="body2">Publier un film ou un commentaire est conditionné au fait d'ajouter un pseudonyme à votre publication, sans pour autant nécessiter la création d'un compte. Le but étant de ne pas rendre l'utilisation du site contraignante avec un véritable login, tout en permettant éventuellement aux contributeurs réguliers d'être reconnus. Si vous avez des retours sur ce sujet n'hésitez surtout pas, c'est une idée tout à fait experimentale et qui sera ammenée à changer. Idéalement, sauf si le site se retrouve accablé de bots, il restera sans obligation de créer un compte.</Typography>
           </li>
         </Box>
         <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-          N'hésitez pas à partager vos retours sur le forum !
+          Enfin, n'hésitez pas à partager vos retours sur le forum (ou par e-mail) si vous rencontrez le moindre soucis, si vous avez des suggestions, etc !
         </Typography>
       </DialogContent>
 
