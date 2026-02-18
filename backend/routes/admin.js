@@ -357,7 +357,7 @@ router.delete('/ip-bans/:id', authenticateAdmin, async (req, res) => {
 
 /**
  * POST /bulk-delete-ip - Bulk delete all content from an IP with sanitization
- * Now also deletes associated reports and comment_likes
+ * Also deletes orphaned movies (movies with no submissions left) and their remaining comments
  */
 router.post('/bulk-delete-ip', authenticateAdmin, async (req, res) => {
   let { ip_address } = req.body;
@@ -379,13 +379,16 @@ router.post('/bulk-delete-ip', authenticateAdmin, async (req, res) => {
 
     // Get IDs of submissions and comments to delete their reports
     const submissionIds = await client.query(
-      'SELECT id FROM submissions WHERE submitter_ip = $1',
+      'SELECT id, movie_id FROM submissions WHERE submitter_ip = $1',
       [ip_address]
     );
     const commentIds = await client.query(
       'SELECT id FROM comments WHERE submitter_ip = $1',
       [ip_address]
     );
+
+    // Get movie IDs that will be affected
+    const affectedMovieIds = [...new Set(submissionIds.rows.map(r => r.movie_id))];
 
     // Count what will be deleted
     const submissionCount = submissionIds.rows.length;
@@ -424,6 +427,21 @@ router.post('/bulk-delete-ip', authenticateAdmin, async (req, res) => {
     await client.query('DELETE FROM comments WHERE submitter_ip = $1', [ip_address]);
     await client.query('DELETE FROM submissions WHERE submitter_ip = $1', [ip_address]);
 
+    // Find and delete orphaned movies (movies with no submissions left)
+    // This will cascade delete ALL remaining comments via ON DELETE CASCADE
+    let orphanedMovieCount = 0;
+    if (affectedMovieIds.length > 0) {
+      const orphanedResult = await client.query(`
+        DELETE FROM movies 
+        WHERE id = ANY($1::int[]) 
+        AND NOT EXISTS (
+          SELECT 1 FROM submissions WHERE movie_id = movies.id
+        )
+        RETURNING id
+      `, [affectedMovieIds]);
+      orphanedMovieCount = orphanedResult.rowCount || 0;
+    }
+
     await client.query('COMMIT');
 
     await sendDiscordWebhook('admin', {
@@ -435,7 +453,8 @@ router.post('/bulk-delete-ip', authenticateAdmin, async (req, res) => {
         { name: '💬 Commentaires supprimés', value: String(commentCount), inline: true },
         { name: '👍 Likes supprimés', value: likeCount.rows[0].count, inline: true },
         { name: '💬👍 Comment likes supprimés', value: commentLikeCount.rows[0].count, inline: true },
-        { name: '🚩 Signalements supprimés', value: String(reportCount), inline: true }
+        { name: '🚩 Signalements supprimés', value: String(reportCount), inline: true },
+        { name: '🎬 Films orphelins supprimés', value: String(orphanedMovieCount), inline: true }
       ],
       timestamp: new Date().toISOString()
     });
@@ -447,7 +466,8 @@ router.post('/bulk-delete-ip', authenticateAdmin, async (req, res) => {
         comments: commentCount,
         likes: parseInt(likeCount.rows[0].count),
         comment_likes: parseInt(commentLikeCount.rows[0].count),
-        reports: reportCount
+        reports: reportCount,
+        orphaned_movies: orphanedMovieCount
       }
     });
   } catch (error) {
@@ -505,6 +525,7 @@ router.put('/submissions/:id', authenticateAdmin, async (req, res) => {
 
 /**
  * DELETE /submissions/:id - Delete submission and associated reports
+ * Also deletes the movie if it has no remaining submissions
  */
 router.delete('/submissions/:id', authenticateAdmin, async (req, res) => {
   const { id } = req.params;
@@ -524,6 +545,8 @@ router.delete('/submissions/:id', authenticateAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Soumission non trouvée' });
     }
 
+    const movieId = submissionResult.rows[0].movie_id;
+
     // Delete associated reports
     await client.query(
       'DELETE FROM reports WHERE report_type = $1 AND entity_id = $2',
@@ -533,6 +556,18 @@ router.delete('/submissions/:id', authenticateAdmin, async (req, res) => {
     // Delete submission (cascades to likes and post_credit_scenes via ON DELETE CASCADE)
     await client.query('DELETE FROM submissions WHERE id = $1', [id]);
 
+    // Check if movie has no more submissions and delete it if orphaned
+    const remainingSubmissions = await client.query(
+      'SELECT COUNT(*) FROM submissions WHERE movie_id = $1',
+      [movieId]
+    );
+
+    let movieDeleted = false;
+    if (parseInt(remainingSubmissions.rows[0].count) === 0) {
+      await client.query('DELETE FROM movies WHERE id = $1', [movieId]);
+      movieDeleted = true;
+    }
+
     await client.query('COMMIT');
 
     await sendDiscordWebhook('admin', {
@@ -540,12 +575,17 @@ router.delete('/submissions/:id', authenticateAdmin, async (req, res) => {
       color: 15158332,
       fields: [
         { name: '🔗 ID', value: `#${id}`, inline: true },
-        { name: '📦 Version', value: submissionResult.rows[0].cpl_title, inline: false }
+        { name: '📦 Version', value: submissionResult.rows[0].cpl_title, inline: false },
+        { name: '🎬 Film orphelin supprimé', value: movieDeleted ? 'Oui' : 'Non', inline: true }
       ],
       timestamp: new Date().toISOString()
     });
 
-    res.json({ message: 'Soumission et données associées supprimées' });
+    res.json({ 
+      message: movieDeleted 
+        ? 'Soumission et film orphelin supprimés' 
+        : 'Soumission supprimée' 
+    });
   } catch (error) {
     await client.query('ROLLBACK');
     logger.error('Entity comment or submission delete error:', { error: error.message, stack: error.stack, ip: req.ip });
