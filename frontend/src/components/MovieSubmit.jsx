@@ -49,6 +49,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import axios from 'axios';
 import { sanitizeText, sanitizeUsername } from '../utils/sanitizer';
+import { validateTimeFormat } from '../utils/validators';
 
 function MovieSubmit({ movie, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -223,31 +224,6 @@ function MovieSubmit({ movie, onSuccess }) {
 
   const removePostCreditScene = (index) => {
     setPostCreditScenes(post_credit_scenes.filter((_, i) => i !== index));
-  };
-
-  const validateTimeFormat = (time) => {
-    // CRITICAL FIX: Trim whitespace before validation
-    const trimmedTime = time.trim();
-    
-    if (!/^[0-9]{1,2}:[0-9]{2}:[0-9]{2}$/.test(trimmedTime)) {
-      return { valid: false, error: 'Format invalide. Utilisez H:MM:SS ou HH:MM:SS' };
-    }
-
-    const [hours, minutes, seconds] = trimmedTime.split(':').map(Number);
-
-    if (hours > 20) {
-      return { valid: false, error: 'Les heures ne peuvent pas dépasser 20' };
-    }
-
-    if (minutes > 59) {
-      return { valid: false, error: 'Les minutes doivent être entre 0 et 59' };
-    }
-
-    if (seconds > 59) {
-      return { valid: false, error: 'Les secondes doivent être entre 0 et 59' };
-    }
-
-    return { valid: true };
   };
 
   const handleSubmit = async (e) => {
