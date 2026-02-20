@@ -107,16 +107,16 @@ router.get('/search', async (req, res) => {
         COUNT(s.id) as submission_count,
         -- Prioritize exact matches, then word starts, then substrings
         CASE
-          WHEN unaccent(LOWER(m.title)) = unaccent(LOWER($1)) THEN 1
-          WHEN unaccent(LOWER(m.original_title)) = unaccent(LOWER($1)) THEN 1
-          WHEN unaccent(LOWER(m.title)) LIKE unaccent(LOWER($1)) || '%' THEN 2
-          WHEN unaccent(LOWER(m.original_title)) LIKE unaccent(LOWER($1)) || '%' THEN 2
+          WHEN immutable_unaccent(LOWER(m.title)) = immutable_unaccent(LOWER($1)) THEN 1
+          WHEN immutable_unaccent(LOWER(m.original_title)) = immutable_unaccent(LOWER($1)) THEN 1
+          WHEN immutable_unaccent(LOWER(m.title)) LIKE immutable_unaccent(LOWER($1)) || '%' THEN 2
+          WHEN immutable_unaccent(LOWER(m.original_title)) LIKE immutable_unaccent(LOWER($1)) || '%' THEN 2
           ELSE 3
         END as match_priority
       FROM movies m
       LEFT JOIN submissions s ON m.id = s.movie_id 
-      WHERE unaccent(LOWER(m.title)) LIKE '%' || unaccent(LOWER($1)) || '%'
-         OR unaccent(LOWER(m.original_title)) LIKE '%' || unaccent(LOWER($1)) || '%'
+      WHERE immutable_unaccent(LOWER(m.title)) LIKE '%' || immutable_unaccent(LOWER($1)) || '%'
+         OR immutable_unaccent(LOWER(m.original_title)) LIKE '%' || immutable_unaccent(LOWER($1)) || '%'
       GROUP BY m.id
       ORDER BY match_priority ASC, submission_count DESC, m.release_date DESC
       LIMIT 20`,

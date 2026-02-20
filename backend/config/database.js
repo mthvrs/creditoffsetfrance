@@ -59,21 +59,47 @@ export async function initDatabase() {
         } catch (e) {
           // Column likely already exists
         }
-        // Ensure unaccent extension exists even when tables already exist
+        // Ensure extensions and functions exist even when tables already exist
         try {
           await client.query('CREATE EXTENSION IF NOT EXISTS unaccent;');
-          console.log('✅ Unaccent extension verified');
+          await client.query('CREATE EXTENSION IF NOT EXISTS pg_trgm;');
+          console.log('✅ Extensions verified');
+
+          // Create immutable unaccent function for indexing
+          await client.query(`
+            CREATE OR REPLACE FUNCTION immutable_unaccent(text)
+            RETURNS text AS $$
+              SELECT unaccent($1);
+            $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;
+          `);
+          console.log('✅ Immutable unaccent function verified');
+
+          // Ensure GIN indexes for fast text search exist
+          await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_movies_title_trgm ON movies USING GIN (immutable_unaccent(lower(title)) gin_trgm_ops);
+            CREATE INDEX IF NOT EXISTS idx_movies_original_title_trgm ON movies USING GIN (immutable_unaccent(lower(original_title)) gin_trgm_ops);
+          `);
+          console.log('✅ Search indexes verified');
         } catch (e) {
-          console.error('⚠️ Could not create unaccent extension:', e.message);
+          console.error('⚠️ Could not create extensions or indexes:', e.message);
         }
         return;
       }
     }
 
-    // Enable unaccent extension for accent-insensitive search
-    console.log('📦 Enabling unaccent extension...');
+    // Enable extensions for search
+    console.log('📦 Enabling database extensions...');
     await client.query('CREATE EXTENSION IF NOT EXISTS unaccent;');
-    console.log('✅ Unaccent extension enabled');
+    await client.query('CREATE EXTENSION IF NOT EXISTS pg_trgm;');
+    console.log('✅ Extensions enabled');
+
+    // Create immutable unaccent function
+    await client.query(`
+      CREATE OR REPLACE FUNCTION immutable_unaccent(text)
+      RETURNS text AS $$
+        SELECT unaccent($1);
+      $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;
+    `);
 
     console.log('📋 Creating database tables...');
 
@@ -182,6 +208,9 @@ export async function initDatabase() {
       CREATE INDEX idx_reports_entity ON reports(report_type, entity_id);
       CREATE INDEX idx_reports_created_at ON reports(created_at DESC);
       CREATE INDEX idx_reports_email ON reports(email);
+
+      CREATE INDEX idx_movies_title_trgm ON movies USING GIN (immutable_unaccent(lower(title)) gin_trgm_ops);
+      CREATE INDEX idx_movies_original_title_trgm ON movies USING GIN (immutable_unaccent(lower(original_title)) gin_trgm_ops);
     `);
     console.log('✅ Database initialized successfully');
   } catch (error) {
