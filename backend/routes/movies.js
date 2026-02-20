@@ -61,12 +61,12 @@ router.get('/', async (req, res) => {
         ) ORDER BY s.created_at DESC) FILTER (WHERE s.id IS NOT NULL)
         as submissions,
         (SELECT COUNT(*) FROM comments WHERE movie_id = m.id) as comment_count,
-        (SELECT MAX(s2.created_at) FROM submissions s2 WHERE s2.movie_id = m.id) as last_update
+        m.last_submission_at as last_update
       FROM movies m 
       LEFT JOIN submissions s ON m.id = s.movie_id
+      WHERE m.last_submission_at IS NOT NULL
       GROUP BY m.id 
-      HAVING COUNT(s.id) > 0
-      ORDER BY last_update DESC NULLS LAST, m.created_at DESC 
+      ORDER BY m.last_submission_at DESC NULLS LAST, m.created_at DESC
       LIMIT $1 OFFSET $2
     `, [limit, offset]);
 
@@ -222,6 +222,12 @@ router.post('/', checkIpBan, submitLimiter, validateSubmission, checkValidation,
     );
 
     const submission_id = submissionResult.rows[0].id;
+
+    // Update movie last_submission_at
+    await client.query(
+      `UPDATE movies SET last_submission_at = $1 WHERE id = $2`,
+      [submissionResult.rows[0].created_at, movie_id]
+    );
 
     // Insert post-credit scenes
     if (post_credit_scenes && post_credit_scenes.length > 0) {

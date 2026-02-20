@@ -49,6 +49,34 @@ export async function initDatabase() {
 
       if (result.rows.length > 0) {
         console.log('✅ Database tables already exist, skipping init');
+        // Check for last_submission_at column and add if missing
+        try {
+          await client.query(`
+            ALTER TABLE movies
+            ADD COLUMN IF NOT EXISTS last_submission_at TIMESTAMP;
+          `);
+          console.log('✅ Verified last_submission_at column');
+
+          await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_movies_last_submission_at ON movies(last_submission_at DESC);
+          `);
+          console.log('✅ Verified index on last_submission_at');
+
+          // Backfill data if needed
+          await client.query(`
+            UPDATE movies m
+            SET last_submission_at = (
+              SELECT MAX(created_at)
+              FROM submissions s
+              WHERE s.movie_id = m.id
+            )
+            WHERE last_submission_at IS NULL AND EXISTS (SELECT 1 FROM submissions s WHERE s.movie_id = m.id);
+          `);
+          console.log('✅ Backfilled last_submission_at');
+        } catch (e) {
+          console.error('⚠️ Schema update error:', e.message);
+        }
+
         // Attempt to add missing release_date column if needed
         try {
           await client.query(`
@@ -87,6 +115,7 @@ export async function initDatabase() {
         cpl_title_date DATE,
         poster_path VARCHAR(500),
         runtime INTEGER,
+        last_submission_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -172,6 +201,7 @@ export async function initDatabase() {
       CREATE INDEX idx_movies_tmdb_id ON movies(tmdb_id);
       CREATE INDEX idx_movies_release_date ON movies(release_date DESC);
       CREATE INDEX idx_movies_cpl_title_date ON movies(cpl_title_date DESC);
+      CREATE INDEX idx_movies_last_submission_at ON movies(last_submission_at DESC);
       CREATE INDEX idx_submissions_movie_id ON submissions(movie_id);
       CREATE INDEX idx_post_credit_scenes_submission_id ON post_credit_scenes(submission_id);
       CREATE INDEX idx_comments_movie_id ON comments(movie_id);
