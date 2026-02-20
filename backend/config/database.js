@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import logger from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -8,8 +9,8 @@ const __dirname = path.dirname(__filename);
 // Load from backend/.env (one level up from config/)
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
-console.log('🔍 DATABASE_URL:', process.env.DATABASE_URL ? '✅ Set' : '❌ Undefined');
-console.log('🔄 RESET_DB:', process.env.RESET_DB ? '✅ Enabled' : '❌ Disabled');
+logger.info(`🔍 DATABASE_URL: ${process.env.DATABASE_URL ? '✅ Set' : '❌ Undefined'}`);
+logger.info(`🔄 RESET_DB: ${process.env.RESET_DB ? '✅ Enabled' : '❌ Disabled'}`);
 
 import pg from 'pg';
 
@@ -25,7 +26,7 @@ export async function initDatabase() {
     const shouldReset = process.env.RESET_DB === 'true' || process.env.NODE_ENV === 'test';
 
     if (shouldReset) {
-      console.log('🔄 RESET_DB is enabled, dropping all tables...');
+      logger.info('🔄 RESET_DB is enabled, dropping all tables...');
       await client.query(`
         DROP TABLE IF EXISTS reports CASCADE;
         DROP TABLE IF EXISTS comment_likes CASCADE;
@@ -37,7 +38,7 @@ export async function initDatabase() {
         DROP TABLE IF EXISTS movies CASCADE;
         DROP TABLE IF EXISTS admin_users CASCADE;
       `);
-      console.log('✅ All tables dropped');
+      logger.info('✅ All tables dropped');
     } else {
       // Check if tables already exist
       const result = await client.query(`
@@ -48,34 +49,34 @@ export async function initDatabase() {
       `);
 
       if (result.rows.length > 0) {
-        console.log('✅ Database tables already exist, skipping init');
+        logger.info('✅ Database tables already exist, skipping init');
         // Attempt to add missing release_date column if needed
         try {
           await client.query(`
             ALTER TABLE movies 
             ADD COLUMN release_date DATE;
           `);
-          console.log('✅ Added missing release_date column');
+          logger.info('✅ Added missing release_date column');
         } catch (e) {
           // Column likely already exists
         }
         // Ensure unaccent extension exists even when tables already exist
         try {
           await client.query('CREATE EXTENSION IF NOT EXISTS unaccent;');
-          console.log('✅ Unaccent extension verified');
+          logger.info('✅ Unaccent extension verified');
         } catch (e) {
-          console.error('⚠️ Could not create unaccent extension:', e.message);
+          logger.error('⚠️ Could not create unaccent extension', { error: e.message });
         }
         return;
       }
     }
 
     // Enable unaccent extension for accent-insensitive search
-    console.log('📦 Enabling unaccent extension...');
+    logger.info('📦 Enabling unaccent extension...');
     await client.query('CREATE EXTENSION IF NOT EXISTS unaccent;');
-    console.log('✅ Unaccent extension enabled');
+    logger.info('✅ Unaccent extension enabled');
 
-    console.log('📋 Creating database tables...');
+    logger.info('📋 Creating database tables...');
 
     await client.query(`
       CREATE TABLE movies (
@@ -183,9 +184,9 @@ export async function initDatabase() {
       CREATE INDEX idx_reports_created_at ON reports(created_at DESC);
       CREATE INDEX idx_reports_email ON reports(email);
     `);
-    console.log('✅ Database initialized successfully');
+    logger.info('✅ Database initialized successfully');
   } catch (error) {
-    console.error('Database initialization error:', error);
+    logger.error('Database initialization error', { error: error.message, stack: error.stack });
     throw error;
   } finally {
     client.release();
