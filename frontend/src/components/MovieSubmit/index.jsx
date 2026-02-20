@@ -9,29 +9,19 @@ import {
   Button,
   Alert,
   CircularProgress,
-  Grid,
-  Select,
-  MenuItem,
   FormControl,
   InputLabel,
+  Select,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
   IconButton,
   Divider,
   Tooltip,
   Link,
   Collapse,
-  ListItemIcon,
-  ListItemText,
-  Dialog,
-  DialogContent,
-  DialogActions,
-  Paper,
-  Chip,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import WarningIcon from '@mui/icons-material/Warning';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import InfoIcon from '@mui/icons-material/Info';
 import MovieIcon from '@mui/icons-material/Movie';
@@ -39,16 +29,13 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import SettingsIcon from '@mui/icons-material/Settings';
 import EmailIcon from '@mui/icons-material/Email';
 import EditIcon from '@mui/icons-material/Edit';
-import PersonIcon from '@mui/icons-material/Person';
-import ScheduleIcon from '@mui/icons-material/Schedule';
-import SourceIcon from '@mui/icons-material/Source';
-import NoteIcon from '@mui/icons-material/Note';
-import TheatersIcon from '@mui/icons-material/Theaters';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import axios from 'axios';
-import { sanitizeText, sanitizeUsername } from '../utils/sanitizer';
+import { sanitizeText, sanitizeUsername } from '../../utils/sanitizer';
+
+import TimecodeForm from './TimecodeForm';
+import PostCreditScenesForm from './PostCreditScenesForm';
+import SubmissionConfirmationDialog from './SubmissionConfirmationDialog';
 
 function MovieSubmit({ movie, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -519,80 +506,13 @@ function MovieSubmit({ movie, onSuccess }) {
               </Typography>
             </Alert>
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  required
-                  label={
-                    <>
-                      FFEC <Typography component="span" sx={{ fontSize: '0.75rem' }}>(Début du générique animé)</Typography>
-                    </>
-                  }
-                  placeholder="1:43:23"
-                  value={formData.ffec}
-                  onChange={(e) => handleChange('ffec', e.target.value)}
-                  onBlur={() => handleBlur('ffec')}
-                  helperText="Format: H:MM:SS"
-                  InputProps={{
-                    endAdornment: (
-                      <Tooltip
-                        title="Début des crédits de fin animés (avec images, animations, logos, etc.) ou non. C'est le moment où le générique commence, même s'il est stylisé. Rappel : Il s'agit du temps écoulé depuis le début du film."
-                        placement="top"
-                      >
-                        <HelpOutlineIcon fontSize="small" color="action" sx={{ cursor: 'help' }} />
-                      </Tooltip>
-                    ),
-                  }}
-                />
-                <Collapse in={timecodeWarning.ffec}>
-                  <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 1, fontSize: '0.85rem' }}>
-                    Ce timecode semble court. Assurez-vous d'utiliser le <strong>temps écoulé</strong> depuis le début du film, et non l'offset (temps restant) qu'utilisait l'ancienne version du site.
-                  </Alert>
-                </Collapse>
-                <Collapse in={timecodeWarning.ffecLong}>
-                  <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 1, fontSize: '0.85rem' }}>
-                    Ce timecode dépasse la durée du film ({movie.runtime} min). Vérifiez qu'il n'y a pas d'erreur.
-                  </Alert>
-                </Collapse>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  required
-                  label={
-                    <>
-                      FFMC <Typography component="span" sx={{ fontSize: '0.75rem' }}>(Début du générique déroulant)</Typography>
-                    </>
-                  }
-                  placeholder="1:45:30"
-                  value={formData.ffmc}
-                  onChange={(e) => handleChange('ffmc', e.target.value)}
-                  onBlur={() => handleBlur('ffmc')}
-                  helperText="Format: H:MM:SS"
-                  InputProps={{
-                    endAdornment: (
-                      <Tooltip
-                        title="Début des crédits déroulants noirs et blancs classiques (texte simple sur fond noir, sans fioritures). C'est le générique 'classique' qui défile. Rappel : Il s'agit du temps écoulé depuis le début du film."
-                        placement="top"
-                      >
-                        <HelpOutlineIcon fontSize="small" color="action" sx={{ cursor: 'help' }} />
-                      </Tooltip>
-                    ),
-                  }}
-                />
-                <Collapse in={timecodeWarning.ffmc}>
-                  <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 1, fontSize: '0.85rem' }}>
-                    Ce timecode semble court. Assurez-vous d'utiliser le <strong>temps écoulé</strong> depuis le début du film, et non l'offset (temps restant) qu'utilisait l'ancienne version du site.
-                  </Alert>
-                </Collapse>
-                <Collapse in={timecodeWarning.ffmcLong}>
-                  <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 1, fontSize: '0.85rem' }}>
-                    Ce timecode dépasse la durée du film ({movie.runtime} min). Vérifiez qu'il n'y a pas d'erreur.
-                  </Alert>
-                </Collapse>
-              </Grid>
-            </Grid>
+            <TimecodeForm
+              formData={formData}
+              handleChange={handleChange}
+              handleBlur={handleBlur}
+              timecodeWarning={timecodeWarning}
+              movie={movie}
+            />
 
             <TextField
               fullWidth
@@ -668,77 +588,14 @@ function MovieSubmit({ movie, onSuccess }) {
 
             <Divider sx={{ my: 3 }} />
 
-            <Box sx={{ mb: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Typography variant="subtitle1" fontWeight="600">
-                  Scènes post-crédit (facultatives)
-                </Typography>
-                <Button variant="outlined" size="small" startIcon={<AddIcon />} onClick={addPostCreditScene}>
-                  Ajouter
-                </Button>
-              </Box>
-
-              {post_credit_scenes.map((scene, index) => (
-                <Box key={index}>
-                  <Card sx={{ mb: 2, p: 2, background: 'rgba(242, 68, 29, 0.05)' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                      <Typography variant="body2" fontWeight="600">
-                        Scène {index + 1}
-                      </Typography>
-                      <IconButton size="small" onClick={() => removePostCreditScene(index)} color="error">
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                    <Grid container spacing={2}>
-                      <Grid item xs={6}>
-                        <TextField
-                          fullWidth
-                          required
-                          size="small"
-                          label="Début (requis)"
-                          placeholder="1:50:00"
-                          value={scene.start_time}
-                          onChange={(e) => updatePostCreditScene(index, 'start_time', e.target.value)}
-                          onBlur={checkPostCreditWarnings}
-                          helperText="H:MM:SS"
-                        />
-                      </Grid>
-                      <Grid item xs={6}>
-                        <TextField
-                          fullWidth
-                          required
-                          size="small"
-                          label="Fin (requis)"
-                          placeholder="1:52:30"
-                          value={scene.end_time}
-                          onChange={(e) => updatePostCreditScene(index, 'end_time', e.target.value)}
-                          onBlur={checkPostCreditWarnings}
-                          helperText="H:MM:SS"
-                        />
-                      </Grid>
-                      <Grid item xs={12}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Description (facultative)"
-                          placeholder="Scène avec les personnages..."
-                          value={scene.description}
-                          onChange={(e) => updatePostCreditScene(index, 'description', e.target.value)}
-                          inputProps={{ maxLength: 500 }}
-                          helperText={`${scene.description?.length || 0}/500 caractères`}
-                        />
-                      </Grid>
-                    </Grid>
-                  </Card>
-
-                  <Collapse in={postCreditWarnings.includes(index)}>
-                    <Alert severity="warning" icon={<WarningIcon />} sx={{ mb: 2, fontSize: '0.85rem' }}>
-                      Ce timecode semble incohérent. Vérifiez qu'il correspond bien à une scène post-crédit et qu'il n'excède pas la durée du film.
-                    </Alert>
-                  </Collapse>
-                </Box>
-              ))}
-            </Box>
+            <PostCreditScenesForm
+              post_credit_scenes={post_credit_scenes}
+              addPostCreditScene={addPostCreditScene}
+              updatePostCreditScene={updatePostCreditScene}
+              removePostCreditScene={removePostCreditScene}
+              checkPostCreditWarnings={checkPostCreditWarnings}
+              postCreditWarnings={postCreditWarnings}
+            />
 
             <Button
               type="submit"
@@ -760,212 +617,18 @@ function MovieSubmit({ movie, onSuccess }) {
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialog */}
-      <Dialog
+      <SubmissionConfirmationDialog
         open={confirmDialogOpen}
         onClose={() => setConfirmDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            background: '#222323',
-          },
-        }}
-      >
-        <DialogContent sx={{ pt: 3 }}>
-          <Typography variant="h5" fontWeight="700" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-            <CheckCircleIcon color="primary" />
-            Confirmez votre soumission
-          </Typography>
-
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Veuillez vérifier que toutes les informations ci-dessous sont correctes avant de soumettre :
-          </Typography>
-
-          {/* Movie Info */}
-          <Paper sx={{ p: 2, mb: 2, background: 'rgba(255, 255, 255, 0.05)' }}>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'start' }}>
-              {movie.poster_path ? (
-                <CardMedia
-                  component="img"
-                  sx={{ width: 60, height: 90, borderRadius: 2, flexShrink: 0 }}
-                  image={`https://image.tmdb.org/t/p/w200${movie.poster_path}`}
-                  alt={sanitizeText(movie.title)}
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = `${process.env.PUBLIC_URL}/placeholder_poster.jpg`;
-                  }}
-                />
-              ) : (
-                <Box
-                  sx={{
-                    width: 60,
-                    height: 90,
-                    flexShrink: 0,
-                    backgroundImage: `url(${process.env.PUBLIC_URL}/placeholder_poster.jpg)`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    borderRadius: 2,
-                  }}
-                />
-              )}
-              <Box>
-                <Typography variant="subtitle1" fontWeight="600">
-                  {sanitizeText(movie.title)}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {movie.release_date && `${new Date(movie.release_date).getFullYear()} • `}
-                  {movie.runtime && `${movie.runtime} min`}
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-
-          {/* CPL Title - SANITIZED */}
-          <Paper sx={{ p: 2, mb: 2, background: 'rgba(255, 255, 255, 0.03)' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-              <MovieIcon fontSize="small" />
-              Titre CPL / Version
-            </Typography>
-            <Typography variant="body1" fontWeight="600">
-              {sanitizeText(formData.cpl_title)}
-            </Typography>
-          </Paper>
-
-          {/* Username - SANITIZED */}
-          <Paper sx={{ p: 2, mb: 2, background: 'rgba(255, 255, 255, 0.03)' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-              <PersonIcon fontSize="small" />
-              Nom d'utilisateur
-            </Typography>
-            <Typography variant="body1">
-              {sanitizeUsername(formData.username)}
-            </Typography>
-          </Paper>
-
-          {/* Timecodes */}
-          <Paper sx={{ p: 2, mb: 2, background: 'rgba(255, 255, 255, 0.03)' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-              <ScheduleIcon fontSize="small" />
-              Timecodes
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <Typography variant="body2" color="text.secondary">
-                  FFEC (Générique animé)
-                </Typography>
-                <Chip label={formData.ffec} color="primary" sx={{ mt: 0.5 }} />
-                {(timecodeWarning.ffec || timecodeWarning.ffecLong) && (
-                  <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 1, fontSize: '0.75rem' }}>
-                    Timecode suspect détecté
-                  </Alert>
-                )}
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body2" color="text.secondary">
-                  FFMC (Générique déroulant)
-                </Typography>
-                <Chip label={formData.ffmc} color="primary" sx={{ mt: 0.5 }} />
-                {(timecodeWarning.ffmc || timecodeWarning.ffmcLong) && (
-                  <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 1, fontSize: '0.75rem' }}>
-                    Timecode suspect détecté
-                  </Alert>
-                )}
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Notes - SANITIZED */}
-          {formData.notes && (
-            <Paper sx={{ p: 2, mb: 2, background: 'rgba(242, 127, 27, 0.1)' }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                <NoteIcon fontSize="small" />
-                Notes
-              </Typography>
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                {sanitizeText(formData.notes)}
-              </Typography>
-            </Paper>
-          )}
-
-          {/* Source - SANITIZED if Autre */}
-          <Paper sx={{ p: 2, mb: 2, background: 'rgba(255, 255, 255, 0.03)' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-              <SourceIcon fontSize="small" />
-              Source de l'information
-            </Typography>
-            <Typography variant="body1">
-              {formData.source === 'Autre' ? sanitizeText(formData.source_other) : formData.source}
-            </Typography>
-          </Paper>
-
-          {/* Post-Credit Scenes - SANITIZED descriptions */}
-          {post_credit_scenes.length > 0 && post_credit_scenes.some((s) => s.start_time && s.end_time) && (
-            <Paper sx={{ p: 2, mb: 2, background: 'rgba(242, 68, 29, 0.1)' }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                <TheatersIcon fontSize="small" />
-                Scènes Post-Crédit ({post_credit_scenes.filter((s) => s.start_time && s.end_time).length})
-              </Typography>
-              {post_credit_scenes.map((scene, index) => {
-                if (!scene.start_time || !scene.end_time) return null;
-                return (
-                  <Box key={index} sx={{ mb: 1.5, '&:last-child': { mb: 0 } }}>
-                    <Typography variant="body2" fontWeight="600">
-                      Scène {index + 1}: {scene.start_time} → {scene.end_time}
-                    </Typography>
-                    {scene.description && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        {scene.description}
-                      </Typography>
-                    )}
-                    {postCreditWarnings.includes(index) && (
-                      <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 1, fontSize: '0.75rem' }}>
-                        Timecode suspect détecté
-                      </Alert>
-                    )}
-                  </Box>
-                );
-              })}
-            </Paper>
-          )}
-
-          {/* Duplicate movie warning in confirmation */}
-          {movieExists && (
-            <Alert severity="warning" icon={<WarningIcon />} sx={{ mb: 2 }}>
-              <Typography variant="body2" fontWeight="600">
-                Rappel : Ce film existe déjà dans la base. Vous ajoutez une nouvelle version.
-              </Typography>
-            </Alert>
-          )}
-        </DialogContent>
-
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button
-            onClick={() => setConfirmDialogOpen(false)}
-            variant="outlined"
-            startIcon={<ArrowBackIcon />}
-            sx={{ minWidth: 140 }}
-          >
-            Retour
-          </Button>
-          <Button
-            onClick={handleConfirmedSubmit}
-            variant="contained"
-            endIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
-            disabled={loading}
-            sx={{
-              minWidth: 140,
-              background: 'linear-gradient(135deg, #F27F1B 0%, #F2441D 100%)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #F26A1B 0%, #c2410c 100%)',
-              },
-            }}
-          >
-            {loading ? 'Envoi...' : 'Confirmer'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onConfirm={handleConfirmedSubmit}
+        loading={loading}
+        movie={movie}
+        formData={formData}
+        post_credit_scenes={post_credit_scenes}
+        timecodeWarning={timecodeWarning}
+        postCreditWarnings={postCreditWarnings}
+        movieExists={movieExists}
+      />
     </>
   );
 }
