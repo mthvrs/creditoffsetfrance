@@ -29,27 +29,37 @@ const decodeHtmlEntities = (text) => {
 };
 
 /**
+ * Sanitize for safe display in React components
+ * Use this when you need to display user content in JSX
+ * @param {string} text - User-generated content
+ * @returns {string} - Sanitized text safe for display
+ */
+export const sanitizeForDisplay = (text) => {
+  if (!text || typeof text !== 'string') {
+    return '';
+  }
+  
+  // Decode HTML entities first
+  const decoded = decodeHtmlEntities(text);
+  
+  // Remove all HTML tags and dangerous content
+  const clean = DOMPurify.sanitize(decoded, {
+    ALLOWED_TAGS: [], // Plaintext only
+    ALLOWED_ATTR: [],
+    KEEP_CONTENT: true,
+  });
+  
+  return clean;
+};
+
+/**
  * Sanitize text content - removes all HTML and returns plain text
  * Also decodes HTML entities to display them properly (including &#x27; for apostrophes)
  * @param {string} text - Raw text that may contain HTML or HTML entities
  * @returns {string} - Plain text with HTML stripped and entities decoded
  */
 export const sanitizeText = (text) => {
-  if (!text || typeof text !== 'string') {
-    return '';
-  }
-  
-  // First decode any HTML entities (like &#x27;, &#39;, &quot;, &amp;, etc.)
-  let decoded = decodeHtmlEntities(text);
-  
-  // Then configure DOMPurify to strip all HTML tags (plaintext mode)
-  const clean = DOMPurify.sanitize(decoded, {
-    ALLOWED_TAGS: [], // No HTML tags allowed
-    ALLOWED_ATTR: [], // No attributes allowed
-    KEEP_CONTENT: true, // Keep the text content
-  });
-  
-  return clean.trim();
+  return sanitizeForDisplay(text).trim();
 };
 
 /**
@@ -72,30 +82,6 @@ export const sanitizeUsername = (username) => {
   clean = clean.replace(/\s+/g, ' ');
   
   return clean.trim();
-};
-
-/**
- * Sanitize for safe display in React components
- * Use this when you need to display user content in JSX
- * @param {string} text - User-generated content
- * @returns {string} - Sanitized text safe for display
- */
-export const sanitizeForDisplay = (text) => {
-  if (!text || typeof text !== 'string') {
-    return '';
-  }
-  
-  // Decode HTML entities first
-  const decoded = decodeHtmlEntities(text);
-  
-  // Remove all HTML tags and dangerous content
-  const clean = DOMPurify.sanitize(decoded, {
-    ALLOWED_TAGS: [], // Plaintext only
-    ALLOWED_ATTR: [],
-    KEEP_CONTENT: true,
-  });
-  
-  return clean;
 };
 
 /**
