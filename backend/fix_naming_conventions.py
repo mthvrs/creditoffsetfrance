@@ -4,7 +4,6 @@ import re
 import shutil
 import json
 from datetime import datetime
-from pathlib import Path
 from collections import defaultdict
 
 class ColumnNameConverter:
