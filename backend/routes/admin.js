@@ -440,6 +440,17 @@ router.post('/bulk-delete-ip', authenticateAdmin, async (req, res) => {
         RETURNING id
       `, [affectedMovieIds]);
       orphanedMovieCount = orphanedResult.rowCount || 0;
+
+      // Update last_submission_at for remaining affected movies
+      await client.query(`
+        UPDATE movies m
+        SET last_submission_at = (
+          SELECT MAX(created_at)
+          FROM submissions s
+          WHERE s.movie_id = m.id
+        )
+        WHERE id = ANY($1::int[])
+      `, [affectedMovieIds]);
     }
 
     await client.query('COMMIT');
@@ -566,6 +577,13 @@ router.delete('/submissions/:id', authenticateAdmin, async (req, res) => {
     if (parseInt(remainingSubmissions.rows[0].count) === 0) {
       await client.query('DELETE FROM movies WHERE id = $1', [movieId]);
       movieDeleted = true;
+    } else {
+      // Recalculate last_submission_at
+      await client.query(`
+        UPDATE movies SET last_submission_at = (
+          SELECT MAX(created_at) FROM submissions WHERE movie_id = $1
+        ) WHERE id = $1
+      `, [movieId]);
     }
 
     await client.query('COMMIT');
@@ -748,10 +766,16 @@ router.post('/generate-test-data', authenticateAdmin, async (req, res) => {
             const submissionResult = await pool.query(`
               INSERT INTO submissions (movie_id, cpl_title, ffec, ffmc, notes, source, submitter_ip, username)
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-              RETURNING id
+              RETURNING *
             `, [movie_id, cpl_title, ffec, ffmc, note, source, '127.0.0.1', username]);
 
             const submission_id = submissionResult.rows[0].id;
+
+            // Update movie last_submission_at
+            await pool.query(
+              `UPDATE movies SET last_submission_at = $1 WHERE id = $2`,
+              [submissionResult.rows[0].created_at, movie_id]
+            );
 
             // Add some random likes (0-15 likes per submission)
             const numLikes = Math.floor(Math.random() * 16);
