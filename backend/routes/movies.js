@@ -183,8 +183,10 @@ router.post('/', checkIpBan, submitLimiter, validateSubmission, checkValidation,
 
   const submitter_ip = req.ip;
 
-  // IMPORTANT: Do NOT sanitize title and original_title - they come from TMDB (trusted source)
-  // Sanitize only user-submitted content to prevent XSS
+  // IMPORTANT: title and original_title nominally come from TMDB (trusted source),
+  // but they are passed via the client and must be sanitized to prevent XSS.
+  title = sanitizeText(title);
+  original_title = original_title ? sanitizeText(original_title) : null;
   cpl_title = sanitizeText(cpl_title);
   version = version ? sanitizeText(version) : null;
   notes = notes ? sanitizeText(notes) : null;
