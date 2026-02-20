@@ -860,15 +860,19 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
     const stats = await pool.query(`
       SELECT 
         (SELECT COUNT(*) FROM movies) as total_movies,
-        (SELECT COUNT(*) FROM submissions) as total_submissions,
         (SELECT COUNT(*) FROM comments) as total_comments,
-        (SELECT COUNT(*) FROM likes WHERE vote_type = 'like') as total_likes,
-        (SELECT COUNT(*) FROM likes WHERE vote_type = 'dislike') as total_dislikes,
-        (SELECT COUNT(*) FROM comment_likes WHERE vote_type = 'like') as total_comment_likes,
-        (SELECT COUNT(*) FROM comment_likes WHERE vote_type = 'dislike') as total_comment_dislikes,
         (SELECT COUNT(*) FROM ip_bans) as total_bans,
         (SELECT COUNT(*) FROM reports) as total_reports,
-        (SELECT COUNT(DISTINCT submitter_ip) FROM submissions) as unique_contributors
+        s.total_submissions,
+        s.unique_contributors,
+        l.total_likes,
+        l.total_dislikes,
+        cl.total_comment_likes,
+        cl.total_comment_dislikes
+      FROM
+        (SELECT COUNT(*) as total_submissions, COUNT(DISTINCT submitter_ip) as unique_contributors FROM submissions) s,
+        (SELECT COUNT(*) FILTER (WHERE vote_type = 'like') as total_likes, COUNT(*) FILTER (WHERE vote_type = 'dislike') as total_dislikes FROM likes) l,
+        (SELECT COUNT(*) FILTER (WHERE vote_type = 'like') as total_comment_likes, COUNT(*) FILTER (WHERE vote_type = 'dislike') as total_comment_dislikes FROM comment_likes) cl
     `);
 
     res.json(stats.rows[0]);
