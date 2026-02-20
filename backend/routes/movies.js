@@ -277,11 +277,13 @@ router.post('/', checkIpBan, submitLimiter, validateSubmission, checkValidation,
       embedFields.push({ name: 'Scènes Post-Générique', value: scenesText, inline: false });
     }
 
-    await sendDiscordWebhook('submissions', {
+    sendDiscordWebhook('submissions', {
       title: 'Nouvelle Soumission',
       color: 5814783,
       fields: embedFields,
       timestamp: new Date().toISOString()
+    }).catch(error => {
+      logger.error('Discord webhook error', { error: error.message, stack: error.stack });
     });
 
     res.status(201).json({
@@ -345,11 +347,13 @@ router.post('/submissions/:id/report', checkIpBan, submitLimiter, validateReport
       fields.push({ name: 'Email', value: email, inline: true });
     }
 
-    await sendDiscordWebhook('reports', {
+    sendDiscordWebhook('reports', {
       title: '🚨 Signalement - Version',
       color: 16744448,
       fields,
       timestamp: new Date().toISOString()
+    }).catch(error => {
+      logger.error('Discord webhook error', { error: error.message, stack: error.stack });
     });
 
     res.json({ message: 'Signalement envoyé avec succès' });
@@ -426,7 +430,7 @@ router.post('/submissions/:id/:vote_type', checkIpBan, likeLimiter, async (req, 
       );
 
       if (submission.rows.length > 0) {
-        await sendDiscordWebhook('reports', {
+        sendDiscordWebhook('reports', {
           title: `⚠️ ${dislikeNum} dislikes atteints`,
           color: 15158332,
           fields: [
@@ -436,6 +440,8 @@ router.post('/submissions/:id/:vote_type', checkIpBan, likeLimiter, async (req, 
             { name: 'ID', value: id, inline: true }
           ],
           timestamp: new Date().toISOString()
+        }).catch(error => {
+          logger.error('Discord webhook error', { error: error.message, stack: error.stack });
         });
       }
     }
@@ -456,7 +462,7 @@ router.post('/submissions/:id/:vote_type', checkIpBan, likeLimiter, async (req, 
     );
 
     if (submission.rows.length > 0) {
-      await sendDiscordWebhook('likes', {
+      sendDiscordWebhook('likes', {
         title: vote_type === 'like' ? '👍 Like' : '👎 Dislike',
         color: vote_type === 'like' ? 3066993 : 15158332,
         fields: [
@@ -466,6 +472,8 @@ router.post('/submissions/:id/:vote_type', checkIpBan, likeLimiter, async (req, 
           { name: 'Dislikes', value: dislike_count.rows[0].count, inline: true }
         ],
         timestamp: new Date().toISOString()
+      }).catch(error => {
+        logger.error('Discord webhook error', { error: error.message, stack: error.stack });
       });
     }
 
@@ -504,7 +512,7 @@ router.post('/:id/comments', checkIpBan, submitLimiter, validateComment, sanitiz
     const movieResult = await pool.query(`SELECT title FROM movies WHERE id = $1`, [id]);
     const movieTitle = movieResult.rows[0]?.title || 'Film inconnu';
 
-    await sendDiscordWebhook('comments', {
+    sendDiscordWebhook('comments', {
       title: '💬 Nouveau Commentaire',
       color: 3447003,
       fields: [
@@ -514,6 +522,8 @@ router.post('/:id/comments', checkIpBan, submitLimiter, validateComment, sanitiz
         { name: 'Commentaire', value: comment_text.substring(0, 500), inline: false }
       ],
       timestamp: new Date().toISOString()
+    }).catch(error => {
+      logger.error('Discord webhook error', { error: error.message, stack: error.stack });
     });
 
     res.status(201).json(result.rows[0]);
@@ -572,11 +582,13 @@ router.post('/comments/:id/report', checkIpBan, submitLimiter, validateReport, s
       fields.push({ name: 'Email', value: email, inline: true });
     }
 
-    await sendDiscordWebhook('reports', {
+    sendDiscordWebhook('reports', {
       title: '🚨 Signalement - Commentaire',
       color: 16744448,
       fields,
       timestamp: new Date().toISOString()
+    }).catch(error => {
+      logger.error('Discord webhook error', { error: error.message, stack: error.stack });
     });
 
     res.json({ message: 'Signalement envoyé avec succès' });
@@ -655,7 +667,7 @@ router.post('/comments/:id/:vote_type', checkIpBan, likeLimiter, async (req, res
     );
 
     if (comment.rows.length > 0) {
-      await sendDiscordWebhook('likes', {
+      sendDiscordWebhook('likes', {
         title: vote_type === 'like' ? '👍 Like Commentaire' : '👎 Dislike Commentaire',
         color: vote_type === 'like' ? 3066993 : 15158332,
         fields: [
@@ -665,6 +677,8 @@ router.post('/comments/:id/:vote_type', checkIpBan, likeLimiter, async (req, res
           { name: 'Dislikes', value: dislike_count.rows[0].count, inline: true }
         ],
         timestamp: new Date().toISOString()
+      }).catch(error => {
+        logger.error('Discord webhook error', { error: error.message, stack: error.stack });
       });
     }
 
