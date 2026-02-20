@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 import { initDatabase } from './config/database.js';
 import { searchLimiter } from './middleware/rateLimiter.js';
 import searchRoutes from './routes/search.js';
@@ -20,7 +21,6 @@ const PORT = process.env.PORT || 3001;
 
 // Helmet configuration with proper security headers
 app.use(helmet({
-  contentSecurityPolicy: false, // Configure separately if needed
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
@@ -133,4 +133,8 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-startServer();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  startServer();
+}
+
+export { app };
