@@ -203,7 +203,7 @@ export function sanitizePostCreditScenes(scenes) {
     return [];
   }
   
-  return scenes.map(scene => {
+  return scenes.filter(scene => scene && typeof scene === 'object').map(scene => {
     const start_time = sanitizeTimecode(scene.start_time || '');
     const end_time = sanitizeTimecode(scene.end_time || '');
     // sanitizeText now preserves apostrophes and normal punctuation
