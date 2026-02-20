@@ -695,10 +695,20 @@ router.get('/:id', async (req, res) => {
     }
 
     const submissionsResult = await pool.query(
-      `SELECT s.*,
-        (SELECT COUNT(*) FROM likes WHERE submission_id = s.id AND vote_type = 'like') as like_count,
-        (SELECT COUNT(*) FROM likes WHERE submission_id = s.id AND vote_type = 'dislike') as dislike_count,
-        (SELECT vote_type FROM likes WHERE submission_id = s.id AND submitter_ip = $2) as user_vote,
+      `WITH submission_stats AS (
+        SELECT
+          submission_id,
+          COUNT(*) FILTER (WHERE vote_type = 'like') as like_count,
+          COUNT(*) FILTER (WHERE vote_type = 'dislike') as dislike_count,
+          MAX(vote_type) FILTER (WHERE submitter_ip = $2) as user_vote
+        FROM likes
+        WHERE submission_id IN (SELECT id FROM submissions WHERE movie_id = $1)
+        GROUP BY submission_id
+      )
+      SELECT s.*,
+        COALESCE(ss.like_count, 0) as like_count,
+        COALESCE(ss.dislike_count, 0) as dislike_count,
+        ss.user_vote,
         json_agg(
           json_build_object(
             'id', pcs.id,
@@ -710,8 +720,9 @@ router.get('/:id', async (req, res) => {
         ) FILTER (WHERE pcs.id IS NOT NULL) as post_credit_scenes
       FROM submissions s
       LEFT JOIN post_credit_scenes pcs ON pcs.submission_id = s.id
+      LEFT JOIN submission_stats ss ON ss.submission_id = s.id
       WHERE s.movie_id = $1
-      GROUP BY s.id
+      GROUP BY s.id, ss.like_count, ss.dislike_count, ss.user_vote
       ORDER BY s.created_at DESC`,
       [id, userIp]
     );
