@@ -175,29 +175,29 @@ router.get('/reports', authenticateAdmin, async (req, res) => {
       SELECT 
         r.*,
         CASE 
-          WHEN r.report_type = 'submission' THEN (
-            SELECT json_build_object(
-              'title', m.title,
-              'cpl_title', s.cpl_title,
-              'submitter_ip', s.submitter_ip
-            )
-            FROM submissions s
-            JOIN movies m ON s.movie_id = m.id
-            WHERE s.id = r.entity_id
-          )
-          WHEN r.report_type = 'comment' THEN (
-            SELECT json_build_object(
-              'title', m.title,
-              'username', c.username,
-              'comment_text', c.comment_text,
-              'submitter_ip', c.submitter_ip
-            )
-            FROM comments c
-            JOIN movies m ON c.movie_id = m.id
-            WHERE c.id = r.entity_id
-          )
+          WHEN r.report_type = 'submission' THEN
+            CASE WHEN s.id IS NOT NULL THEN
+              json_build_object(
+                'title', ms.title,
+                'cpl_title', s.cpl_title,
+                'submitter_ip', s.submitter_ip
+              )
+            ELSE NULL END
+          WHEN r.report_type = 'comment' THEN
+            CASE WHEN c.id IS NOT NULL THEN
+              json_build_object(
+                'title', mc.title,
+                'username', c.username,
+                'comment_text', c.comment_text,
+                'submitter_ip', c.submitter_ip
+              )
+            ELSE NULL END
         END as entity_data
       FROM reports r
+      LEFT JOIN submissions s ON r.report_type = 'submission' AND s.id = r.entity_id
+      LEFT JOIN movies ms ON s.movie_id = ms.id
+      LEFT JOIN comments c ON r.report_type = 'comment' AND c.id = r.entity_id
+      LEFT JOIN movies mc ON c.movie_id = mc.id
       ORDER BY r.created_at DESC
       LIMIT $1 OFFSET $2
     `, [limit, offset]);
